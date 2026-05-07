@@ -12,15 +12,15 @@
 The backend is a Clean Architecture Express 5 API on port 4000. Agents (Scout → Analyst → Writer → Tracker → Reporter) are isolated use-cases in `application/use-cases/`; the only orchestrator is `RunPipeline.ts`. Each agent writes `RunEvent` rows that are streamed to the frontend via a long-lived SSE endpoint. The frontend is a Next.js App Router app: an admin dashboard behind NextAuth v5 (Google OAuth) and public audit report pages with no auth. Data flows: user → API route → use-case → IPort interface → infrastructure adapter → Prisma → PostgreSQL. The 5 most important files are: `backend/src/application/use-cases/pipeline/RunPipeline.ts`, `backend/src/interface/http/routes/pipeline.router.ts`, `frontend/app/(admin)/dashboard/agent/page.tsx`, `frontend/hooks/useLeads.ts`, `backend/src/config/container.ts`.
 
 ## Directory map
-- `localPulse/backend/src/domain/`           — entities, value objects, errors (zero external deps)
-- `localPulse/backend/src/application/`      — use-cases + IPort interfaces (no framework imports)
-- `localPulse/backend/src/infrastructure/`   — Prisma repos, OSM/PageSpeed/LLM/Gmail adapters
-- `localPulse/backend/src/interface/http/`   — Express routes, middleware, Zod DTOs
-- `localPulse/frontend/app/`                 — Next.js App Router pages ((admin), (marketing), audit/)
-- `localPulse/frontend/components/`          — UI (admin/, marketing/, audit/, ui/ ShadCN primitives)
-- `localPulse/frontend/hooks/`               — TanStack Query hooks (useLeads, useRuns, useApprovals…)
-- `localPulse/frontend/stores/`              — Zustand UI state (filters, sidebar, modals)
-- `localPulse/frontend/lib/`                 — Axios client, shared types, utilities
+- `main-project/backend/src/domain/`           — entities, value objects, errors (zero external deps)
+- `main-project/backend/src/application/`      — use-cases + IPort interfaces (no framework imports)
+- `main-project/backend/src/infrastructure/`   — Prisma repos, OSM/PageSpeed/LLM/Gmail adapters
+- `main-project/backend/src/interface/http/`   — Express routes, middleware, Zod DTOs
+- `main-project/frontend/app/`                 — Next.js App Router pages ((admin), (marketing), audit/)
+- `main-project/frontend/components/`          — UI (admin/, marketing/, audit/, ui/ ShadCN primitives)
+- `main-project/frontend/hooks/`               — TanStack Query hooks (useLeads, useRuns, useApprovals…)
+- `main-project/frontend/stores/`              — Zustand UI state (filters, sidebar, modals)
+- `main-project/frontend/lib/`                 — Axios client, shared types, utilities
 
 ## Conventions
 - **Errors:** backend throws typed errors extending `DomainError` from `backend/src/domain/errors.ts`. Never throw raw strings or `new Error()` in use-cases.
@@ -33,7 +33,7 @@ The backend is a Clean Architecture Express 5 API on port 4000. Agents (Scout �
 ## Build / test / deploy commands
 ```bash
 # Backend
-cd localPulse/backend
+cd main-project/backend
 npm install
 npm run dev          # Express on :4000
 npm run build        # tsc compile
@@ -42,7 +42,7 @@ npx prisma migrate dev   # run pending migrations
 npx prisma db seed       # seed demo data
 
 # Frontend
-cd localPulse/frontend
+cd main-project/frontend
 npm install
 npm run dev          # Next.js on :3000
 npm run build
@@ -57,7 +57,7 @@ npx playwright show-report
 - Never write raw SQL strings. Use Prisma query builder only.
 - Never bypass the use-case layer from a route. Routes call use-cases; use-cases call repos.
 - Never commit real secrets. Use `.env` (gitignored). Never hardcode API keys in source.
-- Never edit `localPulse/backend/prisma/migrations/` by hand. Generate via `npx prisma migrate dev`.
+- Never edit `main-project/backend/prisma/migrations/` by hand. Generate via `npx prisma migrate dev`.
 - Never import `@anthropic-ai/sdk` outside `infrastructure/external/llm/AnthropicAdapter.ts`.
 - Never add `rounded-lg` or `rounded-xl` to cards — panels are always `rounded-none`.
 - Never introduce new accent colors — only `lp-amber`, `lp-green`, `lp-red` are allowed.
@@ -70,8 +70,8 @@ npx playwright show-report
 - OSM data has no review counts or ratings — `reviewCount` defaults to 0 for OSM-sourced leads; Google ratings only appear if the Analyst agent runs PageSpeed on a real website.
 
 ## Useful sub-files
-- `localPulse/backend/CLAUDE.md`           — agent patterns, error handling, API rate limits, test conventions
-- `localPulse/frontend/CLAUDE.md`          — component patterns, Zustand usage, React Query key conventions, design system rules
-- `localPulse/backend/prisma/schema.prisma` — full data model (Lead, Run, RunEvent, Email, Settings, MapsCache)
-- `localPulse/frontend/styles/tokens.css`  — CSS custom properties for all design tokens
+- `main-project/backend/CLAUDE.md`           — agent patterns, error handling, API rate limits, test conventions
+- `main-project/frontend/CLAUDE.md`          — component patterns, Zustand usage, React Query key conventions, design system rules
+- `main-project/backend/prisma/schema.prisma` — full data model (Lead, Run, RunEvent, Email, Settings, MapsCache)
+- `main-project/frontend/styles/tokens.css`  — CSS custom properties for all design tokens
 - `SPEC.md`                                — product spec, acceptance criteria, demo script

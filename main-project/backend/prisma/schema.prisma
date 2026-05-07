@@ -1,0 +1,203 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum LeadStatus {
+  DISCOVERED        // Scout found it — not yet audited
+  AUDITED           // Analyst scored it
+  EMAIL_DRAFTED     // Writer generated email
+  PENDING_APPROVAL  // Waiting for admin approval
+  APPROVED          // Approved, not yet sent
+  EMAIL_SENT        // Gmail confirmed send
+  REPLIED           // Prospect replied
+  COLD              // No reply after Day-7 follow-up
+  SKIPPED           // Score > 75 — not worth contacting
+  REJECTED          // Admin rejected the draft
+}
+
+enum RunStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum EventLevel {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+enum EmailCadence {
+  DAY_0  // First outreach
+  DAY_3  // Follow-up
+}
+
+enum EmailStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  SENT
+  FAILED
+}
+
+// ─── Lead ─────────────────────────────────────────────────────────────────────
+
+model Lead {
+  id           String     @id @default(cuid())
+  // publicId drives /audit/[publicId] — unguessable, separate from DB id
+  publicId     String     @unique @default(cuid())
+  // Google Maps Place ID — primary dedup key
+  gmapsPlaceId String     @unique
+  businessName String
+  address      String
+  city         String
+  niche        String
+  phone        String?
+  website      String?
+  contactEmail String?    // Extracted by Analyst phase (Playwright crawler)
+  googleRating Float?
+  reviewCount  Int        @default(0)
+  // Denormalized from Audit for query performance (updated by Analyst)
+  digitalScore    Int?
+  reviewSentiment String?  // positive | mixed | negative
+  topIssue        String?
+  reviewExcerpt   String?
+  status       LeadStatus @default(DISCOVERED)
+  discoveredAt DateTime   @default(now())
+  runId        String
+  run          PipelineRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  audit        Audit?
+  emails       Email[]
+
+  @@index([status])
+  @@index([digitalScore])
+  @@index([niche])
+  @@index([city])
+  @@index([discoveredAt])
+  @@index([status, digitalScore, niche, discoveredAt])
+}
+
+// ─── Audit ────────────────────────────────────────────────────────────────────
+
+// Populated by Analyst Agent (Phase 5). Stub values created in Phase 3.
+model Audit {
+  id             String   @id @default(cuid())
+  leadId         String   @unique
+  lead           Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  pageSpeedScore Int?
+  mobileScore    Int?
+  loadTimeMs     Int?
+  hasSSL         Boolean  @default(false)
+  hasMobileMeta  Boolean  @default(false)
+  hasMetaTags    Boolean  @default(false)
+  hasCTA         Boolean  @default(false)
+  // { positives: string[], negatives: string[], avgRating: number, count: number }
+  reviewSummary  Json     @default("{}")
+  // Raw API responses preserved for debugging
+  rawFindings    Json     @default("{}")
+  auditedAt      DateTime @default(now())
+}
+
+// ─── Email ────────────────────────────────────────────────────────────────────
+
+model Email {
+  id             String       @id @default(cuid())
+  leadId         String
+  lead           Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  cadence        EmailCadence @default(DAY_0)
+  subject        String
+  body           String       @db.Text
+  wordCount      Int
+  status         EmailStatus  @default(PENDING_APPROVAL)
+  recipientEmail String?      // Business contact email — entered by admin at approval time
+  approvedBy     String?      // Admin user identifier
+  sentAt         DateTime?
+  gmailMessageId String?      // Thread tracking
+  createdAt      DateTime     @default(now())
+
+  @@index([status])
+  @@index([leadId])
+  @@index([status, createdAt])
+}
+
+// ─── PipelineRun ──────────────────────────────────────────────────────────────
+
+model PipelineRun {
+  id           String    @id @default(cuid())
+  prompt       String    // e.g. "restaurants in Austin TX"
+  status       RunStatus @default(QUEUED)
+  startedAt    DateTime  @default(now())
+  finishedAt   DateTime?
+  leadsFound   Int       @default(0)
+  leadsScored  Int       @default(0)
+  leadsDrafted Int       @default(0)
+  leadsEmailed Int       @default(0)
+  errorMessage String?
+  leads        Lead[]
+  events       RunEvent[]
+
+  @@index([status])
+  @@index([startedAt])
+}
+
+// ─── RunEvent ─────────────────────────────────────────────────────────────────
+
+// Written immediately after each agent step — audit trail + SSE stream source.
+model RunEvent {
+  id        String     @id @default(cuid())
+  runId     String
+  run       PipelineRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  agentName String     // scout | analyst | writer | tracker | reporter
+  level     EventLevel
+  message   String
+  payload   Json?      // optional structured data (e.g. { placeId, score })
+  createdAt DateTime   @default(now())
+
+  @@index([runId])
+  @@index([runId, createdAt])
+}
+
+// ─── Settings (singleton) ─────────────────────────────────────────────────────
+
+model Settings {
+  id              String   @id @default("singleton")
+  dailyQuota      Int      @default(3)     // max Maps API calls / day
+  scoreThreshold  Int      @default(75)    // skip leads above this score
+  emailWordLimit  Int      @default(180)
+  targetNiches    String[]
+  targetCities    String[]
+  fromName        String?
+  replyToEmail    String?
+  updatedAt       DateTime @updatedAt
+}
+
+// ─── Niche ────────────────────────────────────────────────────────────────────
+
+model Niche {
+  id     String  @id @default(cuid())
+  slug   String  @unique
+  label  String
+  active Boolean @default(true)
+}
+
+// ─── MapsCache ────────────────────────────────────────────────────────────────
+
+// Caches Places API responses by placeId (30-day TTL).
+// Scout checks here before billing the Maps API.
+model MapsCache {
+  placeId   String   @id
+  data      Json
+  fetchedAt DateTime @default(now())
+  expiresAt DateTime // fetchedAt + 30 days — enforced in MapsService adapter
+
+  @@index([expiresAt])
+}
