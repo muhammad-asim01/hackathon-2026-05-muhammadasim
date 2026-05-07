@@ -70,22 +70,14 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      # ── 8. Write .env.production.local from GitHub Secrets ───────────────────
-      # All app env vars live as GitHub Secrets → injected here at build time.
-      # None of these values are ever logged or exposed in the workflow output.
+      # ── 8. Write .env.production.local from the PRODUCTION secret ───────────
+      # The PRODUCTION secret is a multiline block of KEY=VALUE pairs —
+      # exactly the contents of a .env file. Written directly to disk so
+      # `vercel build --prod` picks it up automatically. Nothing is logged.
       - name: Write production env file
-        run: |
-          cat > .env.production.local <<EOF
-          NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
-          NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
-          NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL }}
-          AUTH_URL=${{ secrets.AUTH_URL }}
-          NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
-          AUTH_SECRET=${{ secrets.AUTH_SECRET }}
-          NEXT_PUBLIC_DEFAULT_EMAIL=${{ secrets.NEXT_PUBLIC_DEFAULT_EMAIL }}
-          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-          EOF
+        run: printf '%s\n' "$PRODUCTION_ENV" > .env.production.local
+        env:
+          PRODUCTION_ENV: ${{ secrets.PRODUCTION }}
 
       # ── 9. Build ─────────────────────────────────────────────────────────────
       # `vercel build --prod` uses the .env.production.local written above.

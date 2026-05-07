@@ -21,6 +21,10 @@ const NAV_LINKS = [
 ] as const;
 
 export default function MarketingNav() {
+
+  const checkEnvLoads = process.env.NEXT_PUBLIC_API_URL!
+
+  console.log({checkEnvLoads})
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
