@@ -70,17 +70,37 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      # ── 8. Write .env.production.local from the PRODUCTION secret ───────────
-      # The PRODUCTION secret is a multiline block of KEY=VALUE pairs —
-      # exactly the contents of a .env file. Written directly to disk so
-      # `vercel build --prod` picks it up automatically. Nothing is logged.
+      # ── 8. Write .env.production.local (build-time vars) ─────────────────────
+      # NEXT_PUBLIC_* vars must be present at build time — baked into JS bundle.
       - name: Write production env file
         run: printf '%s\n' "$PRODUCTION_ENV" > .env.production.local
         env:
           PRODUCTION_ENV: ${{ vars.PRODUCTION }}
 
-      # ── 9. Build ─────────────────────────────────────────────────────────────
-      # `vercel build --prod` uses the .env.production.local written above.
+      # ── 9. Sync env vars to Vercel dashboard (runtime vars) ───────────────────
+      # Server-side vars (NEXTAUTH_SECRET, GOOGLE_CLIENT_*, etc.) are read by
+      # Vercel's serverless functions at runtime — not from the build artifact.
+      # This step pushes every KEY=VALUE from GitHub → Vercel automatically,
+      # so you only ever update one place (GitHub) and Vercel stays in sync.
+      - name: Sync env vars to Vercel dashboard
+        run: |
+          # Parse each KEY=VALUE line and upsert it into Vercel production env.
+          # --force overwrites if the var already exists — safe to run every time.
+          while IFS='=' read -r key value; do
+            # Skip blank lines and comment lines
+            [[ -z "$key" || "$key" == \#* ]] && continue
+            echo "Syncing: $key"
+            printf '%s' "$value" | vercel env add "$key" production \
+              --token=${{ secrets.VERCEL_TOKEN }} \
+              --force 2>&1 || true
+          done <<< "$PRODUCTION_ENV"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          PRODUCTION_ENV: ${{ vars.PRODUCTION }}
+
+      # ── 10. Build ─────────────────────────────────────────────────────────────
+      # `vercel build --prod` uses the .env.production.local written in step 8.
       # If the build fails the whole workflow stops — deploy never runs.
       - name: Build with Vercel (production)
         run: |
@@ -91,7 +111,7 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      # ── 10. Deploy prebuilt output ───────────────────────────────────────────
+      # ── 11. Deploy prebuilt output ───────────────────────────────────────────
       # --prebuilt ships exactly what step 9 verified — Vercel does not rebuild.
       # Captures the live URL and writes it to GITHUB_OUTPUT for the summary.
       - name: Deploy to Vercel (production)
@@ -107,7 +127,7 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      # ── 11. Post-deploy summary ──────────────────────────────────────────────
+      # ── 12. Post-deploy summary ──────────────────────────────────────────────
       - name: Write job summary
         if: always()
         run: |
