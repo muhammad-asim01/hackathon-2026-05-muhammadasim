@@ -77,7 +77,7 @@ jobs:
       - name: Write production env file
         run: printf '%s\n' "$PRODUCTION_ENV" > .env.production.local
         env:
-          PRODUCTION_ENV: ${{ secrets.PRODUCTION }}
+          PRODUCTION_ENV: ${{ vars.PRODUCTION }}
 
       # ── 9. Build ─────────────────────────────────────────────────────────────
       # `vercel build --prod` uses the .env.production.local written above.
