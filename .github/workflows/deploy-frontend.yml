@@ -73,45 +73,45 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      # ── 8. Write .env.production.local (build-time vars) ─────────────────────
+      # ── 8. Normalize PRODUCTION env (strip Windows \r once, write clean file) ───
+      # vars.PRODUCTION may be saved with CRLF line endings on Windows.
+      # tr -d '\r' removes every carriage return so values have no trailing \r.
+      # All subsequent steps read from /tmp/production_clean.env — never raw.
+      - name: Normalize production env
+        run: printf '%s' "$PRODUCTION_ENV" | tr -d '\r' > /tmp/production_clean.env
+        env:
+          PRODUCTION_ENV: ${{ vars.PRODUCTION }}
+
+      # ── 9. Write .env.production.local (build-time vars) ─────────────────────
       # NEXT_PUBLIC_* vars must be present at build time — baked into JS bundle.
-      # Auth URL vars are also written here so Next.js picks them up at build.
+      # Reads from the already-clean temp file so no \r ever reaches the bundle.
       - name: Write production env file
         run: |
-          # Base vars from GitHub Variable (NEXT_PUBLIC_*, etc.)
-          printf '%s\n' "$PRODUCTION_ENV" > main-project/frontend/.env.production.local
-          # Always override with canonical production URLs
+          cat /tmp/production_clean.env > main-project/frontend/.env.production.local
+          # Always append canonical production URLs (override any stale value in blob)
           {
             echo "NEXT_PUBLIC_APP_URL=$PRODUCTION_URL"
             echo "NEXTAUTH_URL=$PRODUCTION_URL"
             echo "AUTH_URL=$PRODUCTION_URL"
           } >> main-project/frontend/.env.production.local
-        env:
-          PRODUCTION_ENV: ${{ vars.PRODUCTION }}
 
-      # ── 9. Sync generic env vars → Vercel dashboard (runtime vars) ───────────
-      # Server-side vars are read by Vercel serverless functions at runtime.
-      # Values are stripped of \r to prevent Windows CRLF corrupting the secret.
+      # ── 10. Sync generic env vars → Vercel dashboard (runtime vars) ───────────
+      # Reads from the clean temp file — values are already \r-free.
       - name: Sync env vars to Vercel dashboard
         run: |
           while IFS='=' read -r key value; do
-            # Strip leading/trailing whitespace and carriage returns
-            key="${key// /}"
-            key="${key//$'\r'/}"
-            value="${value//$'\r'/}"
             [[ -z "$key" || "$key" == \#* ]] && continue
             echo "Syncing: $key"
             printf '%s' "$value" | vercel env add "$key" production \
               --cwd main-project/frontend \
               --token=${{ secrets.VERCEL_TOKEN }} \
               --force 2>&1 || true
-          done <<< "$PRODUCTION_ENV"
+          done < /tmp/production_clean.env
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          PRODUCTION_ENV: ${{ vars.PRODUCTION }}
 
-      # ── 10. Sync auth-critical secrets → Vercel dashboard ────────────────────
+      # ── 11. Sync auth-critical secrets → Vercel dashboard ───────────────────
       # These are stored as proper GitHub Secrets (not the plain PRODUCTION var)
       # and are always forced to the canonical production values.
       - name: Sync auth secrets to Vercel dashboard
@@ -148,7 +148,7 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      # ── 11. Build ─────────────────────────────────────────────────────────────
+      # ── 12. Build ─────────────────────────────────────────────────────────────
       # --cwd points Vercel at the frontend folder from the repo root.
       # Uses .env.production.local written in step 8.
       # If the build fails the workflow stops — deploy never runs.
@@ -162,7 +162,7 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      # ── 12. Deploy prebuilt output ───────────────────────────────────────────
+      # ── 13. Deploy prebuilt output ──────────────────────────────────────────
       # --prebuilt ships exactly what step 11 verified — Vercel does not rebuild.
       - name: Deploy to Vercel (production)
         id: deploy
@@ -178,7 +178,7 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      # ── 13. Post-deploy summary ──────────────────────────────────────────────
+      # ── 14. Post-deploy summary ─────────────────────────────────────────────
       - name: Write job summary
         if: always()
         run: |
