@@ -12,7 +12,8 @@ export function useApprovals(params?: { limit?: number; offset?: number }) {
   return useQuery({
     queryKey: ["approvals", "list", params],
     queryFn: () => requests.get<EmailDraft[]>(API_URLS.emails.list, params),
-    staleTime: 0, // always fresh — approval queue is real-time
+    staleTime: 0,
+    refetchInterval: 5_000, // poll every 5s — queue must update while user watches it
   });
 }
 

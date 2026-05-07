@@ -100,6 +100,7 @@ export class AuditWebsite {
 
       if (crawlSettled.status === "fulfilled") {
         crawlResult = crawlSettled.value;
+        console.log("crawlResult.emails", crawlResult.emails)
         extractedEmails = crawlResult.emails;
       } else {
         log.warn({ err: crawlSettled.reason }, "Page crawl failed — skipping crawl signals");
@@ -158,8 +159,10 @@ export class AuditWebsite {
     });
 
     log.info(
-      { score: scoreValue, topIssue, emailsFound: extractedEmails.length, primaryEmail: primaryEmail ?? null },
-      "Website audit complete"
+      { score: scoreValue, topIssue, emailsFound: extractedEmails.length, contactEmail: primaryEmail ?? null },
+      primaryEmail
+        ? `Audit complete — contactEmail "${primaryEmail}" written to lead`
+        : "Audit complete — no contact email found"
     );
 
     return { audit, score, extractedEmails };

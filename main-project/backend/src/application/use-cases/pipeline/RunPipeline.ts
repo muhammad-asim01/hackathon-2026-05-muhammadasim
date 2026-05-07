@@ -157,6 +157,9 @@ export class RunPipeline {
         ]);
 
         let extractedEmail: string | undefined;
+        // Populated from DB after AuditWebsite writes it — robust fallback when
+        // extractedEmails[0] is undefined (e.g. crawl returned empty list).
+        let updatedLeadContactEmail: string | undefined;
 
         if (auditSettled.status === "fulfilled") {
           const { score, audit, extractedEmails } = auditSettled.value;
@@ -164,6 +167,7 @@ export class RunPipeline {
           extractedEmail = extractedEmails[0];
 
           const updatedLead = await this.leadRepo.findById(lead.id);
+          updatedLeadContactEmail = updatedLead?.contactEmail;
           auditContext = {
             ...(updatedLead?.topIssue !== undefined && { topIssue: updatedLead.topIssue }),
             ...(audit.pageSpeedScore !== undefined && { pageSpeedScore: audit.pageSpeedScore }),
@@ -280,9 +284,18 @@ export class RunPipeline {
           level: "INFO",
           message: `Tracker logging ${place.businessName} to CRM…`,
         });
-        // extractedEmail: found by Playwright during Analyst phase
-        // place.contactEmail: always undefined now (Scout no longer extracts emails)
-        const recipientEmail = extractedEmail ?? place.contactEmail;
+        // Primary: extractedEmails[0] returned by AuditWebsite from crawler.
+        // Fallback: Lead.contactEmail written to DB by AuditWebsite — catches
+        // any divergence between the crawler return value and the DB write.
+        const recipientEmail = extractedEmail ?? updatedLeadContactEmail;
+
+        placeLog.info(
+          { leadId: lead.id, recipientEmail: recipientEmail ?? null },
+          recipientEmail
+            ? `Tracker: persisting email draft — recipientEmail "${recipientEmail}"`
+            : "Tracker: persisting email draft — no recipientEmail (admin supplies at approval)"
+        );
+
         await this.logLead.execute({
           leadId: lead.id,
           email: {

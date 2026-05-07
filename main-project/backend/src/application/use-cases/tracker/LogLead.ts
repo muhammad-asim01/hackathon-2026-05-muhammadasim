@@ -39,7 +39,12 @@ export class LogLead {
 
     await this.leadRepo.update(leadId, { status: "PENDING_APPROVAL" });
 
-    log.info({ leadId, emailId: savedEmail.id }, "Lead email draft persisted");
+    log.info(
+      { leadId, emailId: savedEmail.id, recipientEmail: email.recipientEmail ?? null },
+      email.recipientEmail
+        ? `Email draft persisted with recipientEmail "${email.recipientEmail}"`
+        : "Email draft persisted — no recipientEmail (admin must supply at approval)"
+    );
 
     return { email: savedEmail };
   }
