@@ -40,9 +40,24 @@ export function createApp() {
   // ── Security ──────────────────────────────────────────────────────────────
   app.use(helmet());
 
+  const allowedOrigins = [
+    "http://localhost:3000",
+    "https://saftai.vercel.app",
+  ];
+
   app.use(
     cors({
-      origin: env.FRONTEND_URL,
+      origin: (origin, callback) => {
+        // allow server-to-server or curl requests
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+
+        return callback(new Error(`CORS blocked for origin: ${origin}`));
+      },
+
       credentials: true,
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization"],
