@@ -2,8 +2,8 @@
  * Dependency Injection container — manual factory wiring.
  *
  * Maps:       OSMMapsService (Nominatim + Overpass — no Google dependency)
- * PageSpeed:  Google PageSpeedInsights (key required in env)
- * Crawler:    Playwright PageCrawler
+ * PageSpeed:  PythonPageSpeedAdapter → Python FastAPI sidecar on :8001
+ * Crawler:    PythonCrawlerAdapter   → Python FastAPI sidecar on :8001
  * LLM:        AnthropicAdapter (Claude) or MockLLMAdapter when key is absent
  * Email:      GmailService or MockEmailSender when OAuth credentials are absent
  */
@@ -17,9 +17,9 @@ import { RunRepository }     from "@/infrastructure/persistence/repositories/Run
 import { EmailRepository }   from "@/infrastructure/persistence/repositories/EmailRepository";
 import { AuditRepository }   from "@/infrastructure/persistence/repositories/AuditRepository";
 
-import { OSMMapsService }    from "@/infrastructure/external/osm/OSMMapsService";
-import { PageSpeedService }  from "@/infrastructure/external/google/PageSpeedService";
-import { PageCrawler }       from "@/infrastructure/external/crawler/PageCrawler";
+import { OSMMapsService }          from "@/infrastructure/external/osm/OSMMapsService";
+import { PythonCrawlerAdapter }    from "@/infrastructure/external/scraper/PythonCrawlerAdapter";
+import { PythonPageSpeedAdapter }  from "@/infrastructure/external/scraper/PythonPageSpeedAdapter";
 
 import { AnthropicAdapter }  from "@/infrastructure/external/llm/AnthropicAdapter";
 import { MockLLMAdapter }    from "@/infrastructure/external/llm/MockLLMAdapter";
@@ -87,13 +87,17 @@ const mapsService = new OSMMapsService();
 
 logger.info("Maps: using OSMMapsService (Nominatim + Overpass API — no API key required)");
 
-// ─── PageSpeed ────────────────────────────────────────────────────────────────
+// ─── Python scraper sidecar ───────────────────────────────────────────────────
+// Playwright crawling and PageSpeed calls are handled by the Python FastAPI
+// service. Node.js delegates via HTTP on localhost — internal only.
 
-const pageSpeedService = new PageSpeedService(env.GOOGLE_PAGESPEED_API_KEY);
+const pageSpeedService = new PythonPageSpeedAdapter(env.PYTHON_SCRAPER_URL);
+const pageCrawler      = new PythonCrawlerAdapter(env.PYTHON_SCRAPER_URL);
 
-// ─── Crawler ──────────────────────────────────────────────────────────────────
-
-const pageCrawler = new PageCrawler();
+logger.info(
+  { url: env.PYTHON_SCRAPER_URL },
+  "Scraper: using Python FastAPI sidecar (PythonCrawlerAdapter + PythonPageSpeedAdapter)"
+);
 
 // ─── LLM provider ─────────────────────────────────────────────────────────────
 // Use mock when MOCK_LLM=true or the API key is the placeholder default.

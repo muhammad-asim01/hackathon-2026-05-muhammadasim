@@ -56,8 +56,12 @@ const schema = z.object({
     .transform((v) => v === "true" || v === "1")
     .default("false"),
 
-  // ── Google PageSpeed Insights (still used for website auditing) ──────────────
-  // Maps API removed — business discovery now uses OpenStreetMap (no key needed).
+  // ── Python scraper sidecar (internal only — never exposed to internet) ────────
+  PYTHON_SCRAPER_URL: z.string().url().default("http://localhost:8001"),
+
+  // ── Google PageSpeed Insights (called by the Python sidecar) ─────────────────
+  // Also kept here so the Node.js env validation documents it; actual key is read
+  // by the Python service from its own .env.
   GOOGLE_PAGESPEED_API_KEY: z.string().optional().default(""),
 
   // ── Gmail OAuth 2.0 (optional until email sending is used) ────────────────
