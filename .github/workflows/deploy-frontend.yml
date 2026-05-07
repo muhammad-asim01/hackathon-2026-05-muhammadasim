@@ -91,10 +91,14 @@ jobs:
 
       # ── 9. Sync generic env vars → Vercel dashboard (runtime vars) ───────────
       # Server-side vars are read by Vercel serverless functions at runtime.
-      # This step auto-pushes every KEY=VALUE from the PRODUCTION blob.
+      # Values are stripped of \r to prevent Windows CRLF corrupting the secret.
       - name: Sync env vars to Vercel dashboard
         run: |
           while IFS='=' read -r key value; do
+            # Strip leading/trailing whitespace and carriage returns
+            key="${key// /}"
+            key="${key//$'\r'/}"
+            value="${value//$'\r'/}"
             [[ -z "$key" || "$key" == \#* ]] && continue
             echo "Syncing: $key"
             printf '%s' "$value" | vercel env add "$key" production \
@@ -121,21 +125,22 @@ jobs:
           done
 
           # Shared auth secret (frontend ↔ backend JWT signing)
-          printf '%s' "${{ secrets.NEXTAUTH_SECRET }}" | vercel env add NEXTAUTH_SECRET production \
+          # tr -d '\r' strips any Windows carriage return from the secret value
+          printf '%s' "${{ secrets.NEXTAUTH_SECRET }}" | tr -d '\r' | vercel env add NEXTAUTH_SECRET production \
             --cwd main-project/frontend \
             --token=${{ secrets.VERCEL_TOKEN }} \
             --force 2>&1 || true
-          printf '%s' "${{ secrets.NEXTAUTH_SECRET }}" | vercel env add AUTH_SECRET production \
+          printf '%s' "${{ secrets.NEXTAUTH_SECRET }}" | tr -d '\r' | vercel env add AUTH_SECRET production \
             --cwd main-project/frontend \
             --token=${{ secrets.VERCEL_TOKEN }} \
             --force 2>&1 || true
 
-          # Google OAuth credentials
-          printf '%s' "${{ secrets.GOOGLE_CLIENT_ID }}" | vercel env add GOOGLE_CLIENT_ID production \
+          # Google OAuth credentials — tr -d '\r' prevents %0D corruption in OAuth flow
+          printf '%s' "${{ secrets.GOOGLE_CLIENT_ID }}" | tr -d '\r' | vercel env add GOOGLE_CLIENT_ID production \
             --cwd main-project/frontend \
             --token=${{ secrets.VERCEL_TOKEN }} \
             --force 2>&1 || true
-          printf '%s' "${{ secrets.GOOGLE_CLIENT_SECRET }}" | vercel env add GOOGLE_CLIENT_SECRET production \
+          printf '%s' "${{ secrets.GOOGLE_CLIENT_SECRET }}" | tr -d '\r' | vercel env add GOOGLE_CLIENT_SECRET production \
             --cwd main-project/frontend \
             --token=${{ secrets.VERCEL_TOKEN }} \
             --force 2>&1 || true
