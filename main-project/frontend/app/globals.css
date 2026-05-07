@@ -1,0 +1,230 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "../styles/tokens.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  /* Sift.ai brand color utilities */
+  --color-lp-charcoal: #0c0a09;
+  --color-lp-surface: #1c1917;
+  --color-lp-amber: #cab16a;
+  --color-lp-green: #59a569;
+  --color-lp-red: #ea6962;
+  --color-lp-orange: #cc5b33;
+  --color-lp-border: #44403c;
+  --color-lp-text-muted: #a89984;
+
+  /* Custom shadow utilities */
+  --shadow-nav: rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
+  --shadow-card: rgba(0, 0, 0, 0.1) 0px 1px 3px 0px,
+    rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  --shadow-popover: rgba(0, 0, 0, 0.1) 0px 20px 25px -5px,
+    rgba(0, 0, 0, 0.1) 0px 8px 10px -6px;
+}
+
+@theme inline {
+  /* ── Font families ──────────────────────────────────────────────────── */
+  --font-sans: var(--font-circularxx);
+  --font-mono: var(--font-circularxxmono);
+  --font-display: var(--font-whyte);
+
+  /* ── ShadCN semantic tokens → Sift.ai CSS vars ───────────────────── */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+
+  /* ── Border radius ──────────────────────────────────────────────────── */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+}
+
+/* ── ShadCN base theme (dark by default) ──────────────────────────────────── */
+:root {
+  --background: #0c0a09;
+  --foreground: #ffffff;
+  --card: #1c1917;
+  --card-foreground: #f6f6f6;
+  --popover: #1c1917;
+  --popover-foreground: #f6f6f6;
+  --primary: #cab16a;
+  --primary-foreground: #0c0a09;
+  --secondary: #1c1917;
+  --secondary-foreground: #f6f6f6;
+  --muted: #1c1917;
+  --muted-foreground: #a89984;
+  --accent: #44403c;
+  --accent-foreground: #f6f6f6;
+  --destructive: #ea6962;
+  --destructive-foreground: #ffffff;
+  --border: #44403c;
+  --input: #1c1917;
+  --ring: #cab16a;
+  --sidebar: #1c1917;
+  --sidebar-foreground: #f6f6f6;
+  --sidebar-primary: #cab16a;
+  --sidebar-primary-foreground: #0c0a09;
+  --sidebar-accent: #44403c;
+  --sidebar-accent-foreground: #f6f6f6;
+  --sidebar-border: #44403c;
+}
+
+/* ── Base styles ──────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  border-color: var(--border);
+  outline-color: color-mix(in srgb, var(--ring) 50%, transparent);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+/* ── Marketing site keyframes ────────────────────────────────────────────── */
+@keyframes lp-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes lp-slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes lp-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes lp-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes lp-progress {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 47%;
+  }
+}
+
+@keyframes lp-float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes lp-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes lp-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+@keyframes lp-shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-6px); }
+  40%       { transform: translateX(6px); }
+  60%       { transform: translateX(-4px); }
+  80%       { transform: translateX(4px); }
+}
+
+@keyframes lp-step-done {
+  0%   { transform: scale(0.6); opacity: 0; }
+  60%  { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ── Utilities ────────────────────────────────────────────────────────────── */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
