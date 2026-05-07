@@ -23,6 +23,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
 
+    # ── Production domain (single source of truth) ───────────────────────────
+    env:
+      PRODUCTION_URL: https://saftai.vercel.app
+
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────────────────
       - name: Checkout repository
@@ -71,17 +75,23 @@ jobs:
 
       # ── 8. Write .env.production.local (build-time vars) ─────────────────────
       # NEXT_PUBLIC_* vars must be present at build time — baked into JS bundle.
-      # Written into the frontend directory so vercel build picks it up.
+      # Auth URL vars are also written here so Next.js picks them up at build.
       - name: Write production env file
-        run: printf '%s\n' "$PRODUCTION_ENV" > main-project/frontend/.env.production.local
+        run: |
+          # Base vars from GitHub Variable (NEXT_PUBLIC_*, etc.)
+          printf '%s\n' "$PRODUCTION_ENV" > main-project/frontend/.env.production.local
+          # Always override with canonical production URLs
+          {
+            echo "NEXT_PUBLIC_APP_URL=$PRODUCTION_URL"
+            echo "NEXTAUTH_URL=$PRODUCTION_URL"
+            echo "AUTH_URL=$PRODUCTION_URL"
+          } >> main-project/frontend/.env.production.local
         env:
           PRODUCTION_ENV: ${{ vars.PRODUCTION }}
 
-      # ── 9. Sync env vars → Vercel dashboard (runtime vars) ───────────────────
-      # Server-side vars (NEXTAUTH_SECRET, GOOGLE_CLIENT_*, etc.) are read by
-      # Vercel serverless functions at runtime from the Vercel dashboard.
-      # This step auto-pushes every KEY=VALUE from GitHub → Vercel so you only
-      # ever update one place (GitHub) and Vercel stays in sync.
+      # ── 9. Sync generic env vars → Vercel dashboard (runtime vars) ───────────
+      # Server-side vars are read by Vercel serverless functions at runtime.
+      # This step auto-pushes every KEY=VALUE from the PRODUCTION blob.
       - name: Sync env vars to Vercel dashboard
         run: |
           while IFS='=' read -r key value; do
@@ -97,7 +107,43 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           PRODUCTION_ENV: ${{ vars.PRODUCTION }}
 
-      # ── 10. Build ─────────────────────────────────────────────────────────────
+      # ── 10. Sync auth-critical secrets → Vercel dashboard ────────────────────
+      # These are stored as proper GitHub Secrets (not the plain PRODUCTION var)
+      # and are always forced to the canonical production values.
+      - name: Sync auth secrets to Vercel dashboard
+        run: |
+          # Production domain — always correct regardless of PRODUCTION var contents
+          for var in NEXTAUTH_URL AUTH_URL NEXT_PUBLIC_APP_URL; do
+            printf '%s' "$PRODUCTION_URL" | vercel env add "$var" production \
+              --cwd main-project/frontend \
+              --token=${{ secrets.VERCEL_TOKEN }} \
+              --force 2>&1 || true
+          done
+
+          # Shared auth secret (frontend ↔ backend JWT signing)
+          printf '%s' "${{ secrets.NEXTAUTH_SECRET }}" | vercel env add NEXTAUTH_SECRET production \
+            --cwd main-project/frontend \
+            --token=${{ secrets.VERCEL_TOKEN }} \
+            --force 2>&1 || true
+          printf '%s' "${{ secrets.NEXTAUTH_SECRET }}" | vercel env add AUTH_SECRET production \
+            --cwd main-project/frontend \
+            --token=${{ secrets.VERCEL_TOKEN }} \
+            --force 2>&1 || true
+
+          # Google OAuth credentials
+          printf '%s' "${{ secrets.GOOGLE_CLIENT_ID }}" | vercel env add GOOGLE_CLIENT_ID production \
+            --cwd main-project/frontend \
+            --token=${{ secrets.VERCEL_TOKEN }} \
+            --force 2>&1 || true
+          printf '%s' "${{ secrets.GOOGLE_CLIENT_SECRET }}" | vercel env add GOOGLE_CLIENT_SECRET production \
+            --cwd main-project/frontend \
+            --token=${{ secrets.VERCEL_TOKEN }} \
+            --force 2>&1 || true
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      # ── 11. Build ─────────────────────────────────────────────────────────────
       # --cwd points Vercel at the frontend folder from the repo root.
       # Uses .env.production.local written in step 8.
       # If the build fails the workflow stops — deploy never runs.
@@ -111,8 +157,8 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      # ── 11. Deploy prebuilt output ───────────────────────────────────────────
-      # --prebuilt ships exactly what step 10 verified — Vercel does not rebuild.
+      # ── 12. Deploy prebuilt output ───────────────────────────────────────────
+      # --prebuilt ships exactly what step 11 verified — Vercel does not rebuild.
       - name: Deploy to Vercel (production)
         id: deploy
         run: |
@@ -127,7 +173,7 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      # ── 12. Post-deploy summary ──────────────────────────────────────────────
+      # ── 13. Post-deploy summary ──────────────────────────────────────────────
       - name: Write job summary
         if: always()
         run: |
