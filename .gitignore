@@ -48,7 +48,3 @@ Thumbs.db
 coverage/
 .nyc_output/
 
-
-# ── Next ──────────────────────────────────────────────────────────────────────
-./main-project/frontend/.next
-./main-project/frontend/.next
