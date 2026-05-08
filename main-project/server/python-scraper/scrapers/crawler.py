@@ -4,24 +4,37 @@ Hybrid httpx + Playwright crawler.
 Flow mirrors PageCrawler.ts exactly:
   1. Launch a Playwright browser context, visit the URL.
   2. Extract audit signals (SSL, mobile meta, meta tags, CTA, contact form).
-  3. Extract emails from homepage HTML (mailto links → regex fallback).
+  3. Extract emails in priority order:
+       a. JSON-LD / schema.org structured data  (highest confidence — explicitly authored)
+       b. <address> tags                         (semantic HTML for contact info)
+       c. <a href="mailto:"> links               (explicit intent)
+       d. Visible-text regex                     (scripts/styles stripped before matching)
   4. If still no emails: try /contact, /about, /contact-us.
        Primary  → httpx plain HTTP (fast, ~10–50 ms) — mirrors Cheerio fast-path.
        Fallback → Playwright navigation (handles JS + anti-bot).
+       Guard    → skip if secondary page redirects back to homepage root.
 
 A shared Browser object is passed in from the FastAPI lifespan.
 A shared httpx.AsyncClient is passed in for the fast-path fetches.
 """
 
+import json
 import re
 import time
 from urllib.parse import urlparse
 
 import httpx
+from bs4 import BeautifulSoup
 from playwright.async_api import Browser
 
 from models import CrawlResponse
-from utils.email_extractor import extract_mailto_emails, parse_emails
+from utils.email_extractor import (
+    extract_mailto_emails,
+    is_noise,
+    is_valid_email,
+    parse_emails,
+    _priority,
+)
 
 # ── Timeouts ───────────────────────────────────────────────────────────────────
 
@@ -29,7 +42,10 @@ PAGE_TIMEOUT_MS = 20_000
 EMAIL_PAGE_TIMEOUT_MS = 12_000
 HTTP_TIMEOUT_SECS = 5.0
 
-# ── Resource blocking (mirrors BLOCKED_RESOURCES in PageCrawler.ts) ───────────
+# ── Resource blocking ──────────────────────────────────────────────────────────
+# Scripts are intentionally NOT blocked — we need JS execution so that
+# dynamically-rendered content appears in page.content().
+# Images, media, fonts, and stylesheets add latency without providing usable data.
 
 _BLOCKED_RESOURCES = frozenset({"image", "media", "font", "stylesheet"})
 
@@ -62,7 +78,7 @@ _USER_AGENT = (
     "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 )
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
+# ── URL helpers ────────────────────────────────────────────────────────────────
 
 
 def _extract_domain(url: str) -> str:
@@ -78,6 +94,83 @@ def _extract_origin(url: str) -> str:
         return f"{p.scheme}://{p.netloc}"
     except Exception:
         return url
+
+
+def _is_homepage_redirect(navigated_url: str, homepage_url: str) -> bool:
+    """
+    Return True when a secondary-page navigation landed back at the homepage.
+    Compares scheme + netloc + path (ignoring query params and fragments).
+    Prevents re-scraping homepage HTML when /contact doesn't exist.
+    """
+    try:
+        a = urlparse(navigated_url)
+        b = urlparse(homepage_url)
+        return (a.scheme, a.netloc, a.path.rstrip("/")) == (
+            b.scheme,
+            b.netloc,
+            b.path.rstrip("/"),
+        )
+    except Exception:
+        return False
+
+
+# ── Structured-data email extraction (JSON-LD) ────────────────────────────────
+
+
+def _collect_emails_from_obj(obj: object, out: list[str]) -> None:
+    """Recursively walk a JSON-decoded object, collecting values of 'email' keys."""
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if k.lower() == "email" and isinstance(v, str) and "@" in v:
+                out.append(v)
+            else:
+                _collect_emails_from_obj(v, out)
+    elif isinstance(obj, list):
+        for item in obj:
+            _collect_emails_from_obj(item, out)
+
+
+def _extract_jsonld_emails(html: str) -> list[str]:
+    """
+    Parse all <script type="application/ld+json"> blocks and recursively collect
+    any 'email' field values.
+
+    Schema.org markup is intentionally authored by the site owner — it's the
+    highest-confidence source of contact data available in plain HTML.
+    """
+    raw: list[str] = []
+    soup = BeautifulSoup(html, "lxml")
+
+    for tag in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(tag.string or "")
+        except (json.JSONDecodeError, TypeError):
+            continue
+        _collect_emails_from_obj(data, raw)
+
+    seen: set[str] = set()
+    out: list[str] = []
+    for e in raw:
+        e = e.lower().strip()
+        if e not in seen and is_valid_email(e) and not is_noise(e):
+            seen.add(e)
+            out.append(e)
+    return sorted(out, key=_priority)
+
+
+# ── <address> tag email extraction ────────────────────────────────────────────
+
+
+def _extract_address_tag_emails(html: str, site_domain: str | None = None) -> list[str]:
+    """
+    Extract emails from <address> elements — the semantic HTML element for
+    contact information. High signal, low noise.
+    """
+    soup = BeautifulSoup(html, "lxml")
+    combined = " ".join(tag.get_text(separator=" ") for tag in soup.find_all("address"))
+    if not combined.strip():
+        return []
+    return parse_emails(combined, site_domain)
 
 
 # ── httpx fast-path (mirrors extractEmailsCheerio in PageCrawler.ts) ──────────
@@ -100,20 +193,21 @@ async def _extract_emails_httpx(
             follow_redirects=True,
         )
         if not res.is_success:
-            # Non-2xx means page doesn't exist — no emails, skip Playwright fallback
+            # Non-2xx → page doesn't exist; skip Playwright fallback too
             return []
 
         html = res.text
 
-        # mailto links — highest confidence
-        mailto = extract_mailto_emails(html)
-        if mailto:
-            return mailto
-
-        return parse_emails(html, site_domain)
+        # Try channels in priority order for the fast-path as well
+        return (
+            _extract_jsonld_emails(html)
+            or _extract_address_tag_emails(html, site_domain)
+            or extract_mailto_emails(html)
+            or parse_emails(html, site_domain)
+        )
 
     except Exception:
-        # Network failure, timeout, etc. → signal Playwright fallback
+        # Network failure, timeout → signal caller to use Playwright fallback
         return None
 
 
@@ -140,7 +234,7 @@ async def crawl(
         page = await context.new_page()
 
         # Bug fix: handler must take exactly ONE argument — Playwright Python
-        # calls route handlers as handler(route).  Access the request via
+        # calls route handlers as handler(route). Access the request via
         # route.request (not a second positional parameter).
         async def _block_resources(route) -> None:  # type: ignore[type-arg]
             if route.request.resource_type in _BLOCKED_RESOURCES:
@@ -155,12 +249,9 @@ async def crawl(
 
         load_time_ms = int(time.monotonic() * 1000) - start_ms
         final_url = page.url
+        homepage_origin = _extract_origin(final_url)
 
         # ── Step 2: Audit signals ─────────────────────────────────────────────
-        # Bug fix: wrap every selector call in try/except to mirror the
-        # .catch(() => "") / .catch(() => 0) patterns in PageCrawler.ts.
-        # Playwright raises TimeoutError when a required element is absent.
-
         has_ssl = final_url.startswith("https://")
 
         try:
@@ -189,38 +280,45 @@ async def crawl(
             form_count = 0
         has_contact_form = form_count > 0
 
+        # CTA: search full body text instead of iterating N elements.
+        # One Playwright round-trip vs potentially thousands; same detection quality.
         try:
-            clickable_texts = await page.locator("button, a, [role='button']").all_text_contents()
+            body_text = (await page.locator("body").text_content() or "").lower()
+            has_cta = any(pat in body_text for pat in _CTA_PATTERNS)
         except Exception:
-            clickable_texts = []
-        has_cta = any(
-            pat in text.strip().lower()
-            for text in clickable_texts
-            for pat in _CTA_PATTERNS
-        )
+            has_cta = False
 
-        # ── Step 3: Email extraction from homepage HTML ────────────────────────
+        # ── Step 3: Email extraction from homepage ─────────────────────────────
         site_domain = _extract_domain(final_url)
         html = await page.content()
 
-        # mailto links first (highest confidence), then full regex scan
-        emails = extract_mailto_emails(html) or parse_emails(html, site_domain)
+        # Channel 1: JSON-LD structured data — highest confidence (explicitly authored)
+        emails = _extract_jsonld_emails(html)
+
+        # Channel 2: <address> tags — semantic HTML designed for contact info
+        if not emails:
+            emails = _extract_address_tag_emails(html, site_domain)
+
+        # Channel 3: explicit mailto: links — clear intent
+        if not emails:
+            emails = extract_mailto_emails(html)
+
+        # Channel 4: visible-text regex — scripts/styles stripped internally before matching
+        if not emails:
+            emails = parse_emails(html, site_domain)
 
         # ── Step 4: Secondary pages if homepage had no emails ──────────────────
         if not emails:
-            origin = _extract_origin(final_url)
-
             for path in ("/contact", "/about", "/contact-us"):
                 if emails:
                     break
 
-                target_url = f"{origin}{path}"
+                target_url = f"{homepage_origin}{path}"
 
                 # Primary: httpx fast-path (no extra browser navigation)
                 httpx_result = await _extract_emails_httpx(target_url, site_domain, http_client)
 
                 if httpx_result is not None:
-                    # Fetch succeeded — accept result (may be empty, continue to next path)
                     if httpx_result:
                         emails = httpx_result
                     continue
@@ -232,10 +330,20 @@ async def crawl(
                         wait_until="domcontentloaded",
                         timeout=EMAIL_PAGE_TIMEOUT_MS,
                     )
+                    # Skip if the site redirected back to the homepage root
+                    # (means the secondary page doesn't exist)
+                    if _is_homepage_redirect(page.url, final_url):
+                        continue
+
                     sub_html = await page.content()
-                    emails = extract_mailto_emails(sub_html) or parse_emails(sub_html, site_domain)
+                    emails = (
+                        _extract_jsonld_emails(sub_html)
+                        or _extract_address_tag_emails(sub_html, site_domain)
+                        or extract_mailto_emails(sub_html)
+                        or parse_emails(sub_html, site_domain)
+                    )
                 except Exception:
-                    pass  # Page not reachable — skip
+                    pass  # Page not reachable — try next path
 
         return CrawlResponse(
             hasSSL=has_ssl,
