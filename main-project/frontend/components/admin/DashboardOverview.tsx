@@ -147,10 +147,7 @@ export function DashboardOverview() {
           <h1 className="text-xl font-semibold text-foreground tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1">Pipeline overview — {today}</p>
         </div>
-        <Button onClick={() => setShowRunModal(true)} className="gap-2 shrink-0">
-          <Play className="w-3.5 h-3.5" />
-          Run Pipeline
-        </Button>
+        
       </div>
 
       {/* KPI grid */}

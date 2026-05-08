@@ -152,14 +152,17 @@ export interface PublicAuditLead {
 export function scoreVariant(
   score?: number
 ): "error" | "warning" | "muted" | "default" {
-  if (score == null) return "muted";
+  // 0 means the analyst ran but found no website AND no Google data (OSM-only lead).
+  // Display it as "muted" (unscored) rather than red-error so the UI stays readable.
+  if (score == null || score === 0) return "muted";
   if (score <= 30) return "error";
   if (score <= 55) return "warning";
   return "default";
 }
 
 export function scoreTier(score?: number): string {
-  if (score == null) return "No score";
+  if (score == null) return "Not yet audited";
+  if (score === 0) return "No digital presence detected — top outreach priority";
   if (score <= 30) return "Critical — immediate outreach";
   if (score <= 55) return "Poor — strong outreach candidate";
   if (score <= 75) return "Fair — offer free audit";

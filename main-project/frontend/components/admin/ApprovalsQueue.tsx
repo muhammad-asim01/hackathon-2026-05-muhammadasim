@@ -232,12 +232,11 @@ function DraftCard({ draft, index }: { draft: EmailDraft; index: number }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-type FilterTab = "pending" | "email-found" | "approved" | "rejected" | "sent" | "all";
+type FilterTab = "pending" | "email-found" | "rejected" | "sent" | "all";
 
 const TABS: { key: FilterTab; label: string }[] = [
   { key: "pending",     label: "Pending"     },
   { key: "email-found", label: "Email Found" },
-  { key: "approved",    label: "Approved"    },
   { key: "sent",        label: "Sent"        },
   { key: "rejected",    label: "Rejected"    },
   { key: "all",         label: "All"         },

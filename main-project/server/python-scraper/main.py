@@ -158,10 +158,20 @@ async def pagespeed_route(body: PageSpeedRequest, request: Request):
         return result
     except httpx.HTTPStatusError as exc:
         status = exc.response.status_code
-        log.error(f"POST /pagespeed PSI API error url={body.url} status={status}")
+        # Extract the Google API error message from the response body so the
+        # Node.js caller can log the actual reason (not just the HTTP status).
+        try:
+            error_data = exc.response.json()
+            google_msg = (error_data.get("error") or {}).get("message", exc.response.text[:300])
+        except Exception:
+            google_msg = exc.response.text[:300]
+        log.error(
+            f"POST /pagespeed PSI API error url={body.url} status={status} "
+            f"google_error={google_msg!r}"
+        )
         raise HTTPException(
             status_code=502,
-            detail=f"PageSpeed API returned {status}",
+            detail=f"PageSpeed API returned {status}: {google_msg}",
         ) from exc
     except Exception as exc:
         log.error(f"POST /pagespeed failed url={body.url} error={exc}")

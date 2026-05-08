@@ -41,7 +41,6 @@ export default function FooterPublic() {
               <li><Link href="/#how-it-works" className={LINK_CLASSES}>How it works</Link></li>
               <li><Link href="/pricing" className={LINK_CLASSES}>Pricing</Link></li>
               <li><Link href="/compare" className={LINK_CLASSES}>Compare</Link></li>
-              <li><Link href="/dashboard" className={LINK_CLASSES}>Dashboard</Link></li>
             </ul>
           </div>
 
@@ -52,16 +51,7 @@ export default function FooterPublic() {
             </h4>
             <ul className="flex flex-col gap-2.5">
               <li><Link href="/contact" className={LINK_CLASSES}>Contact</Link></li>
-              <li>
-                <a
-                  href="https://github.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={LINK_CLASSES}
-                >
-                  GitHub
-                </a>
-              </li>
+          
             </ul>
           </div>
 

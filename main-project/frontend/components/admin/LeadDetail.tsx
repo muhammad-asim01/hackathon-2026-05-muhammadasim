@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, Globe, Phone, MapPin, Star, MessageSquare, Gauge,
-  Smartphone, AlertTriangle, CheckCircle2, XCircle, Snowflake, Pencil, ExternalLink,
+  Smartphone, AlertTriangle, CheckCircle2, XCircle, Snowflake, Pencil, ExternalLink, FileSearch,
 } from "lucide-react";
 import { useApproveEmail, useRejectEmail, useEditEmail } from "@/hooks/useApprovals";
 import { useUpdateLead } from "@/hooks/useLeads";
@@ -51,14 +51,18 @@ function MetricCard({
 // ─── Score bar ────────────────────────────────────────────────────────────────
 
 function ScoreBar({ score }: { score?: number }) {
-  const pct = score != null ? Math.min(100, Math.round((score / 75) * 100)) : 0;
-  const color = !score ? "bg-border/60" : score <= 55 ? "bg-lp-red" : score <= 75 ? "bg-lp-amber" : "bg-lp-green";
+  // Treat 0 the same as null — 0 only occurs on OSM-sourced leads with no website
+  // and no Google data. null = "not audited", 0 = "audited: no digital presence".
+  // Both render as "Pending / No data" to avoid a confusing half-empty bar.
+  const display = score === 0 ? undefined : score;
+  const pct = display != null ? Math.min(100, Math.round((display / 75) * 100)) : 0;
+  const color = !display ? "bg-border/60" : display <= 55 ? "bg-lp-red" : display <= 75 ? "bg-lp-amber" : "bg-lp-green";
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
         <span className="text-[10px] text-muted-foreground/50 uppercase tracking-[0.1em]">Digital Score</span>
-        <Badge variant={scoreVariant(score)} className="font-mono text-xs tabular-nums">
-          {score != null ? `${score} / 75` : "Pending"}
+        <Badge variant={scoreVariant(display)} className="font-mono text-xs tabular-nums">
+          {display != null ? `${display} / 75` : score === 0 ? "No web data" : "Pending"}
         </Badge>
       </div>
       <div className="h-1.5 bg-border/40 w-full">
@@ -218,9 +222,14 @@ export function LeadDetail({ lead, draft }: Props) {
             <h1 className="text-xl font-semibold text-foreground tracking-tight">{lead.businessName}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">{lead.niche} · {lead.city}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant={scoreVariant(lead.digitalScore)} className="font-mono text-xs">
-              Score {lead.digitalScore ?? "—"}
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge
+              variant={scoreVariant(lead.digitalScore === 0 ? undefined : lead.digitalScore)}
+              className="font-mono text-xs"
+            >
+              {lead.digitalScore != null && lead.digitalScore > 0
+                ? `Score ${lead.digitalScore}`
+                : "Score —"}
             </Badge>
             <Badge
               variant={lead.status === "new" ? "muted" : lead.status === "approved" ? "success" : lead.status === "rejected" ? "error" : "warning"}
@@ -228,6 +237,16 @@ export function LeadDetail({ lead, draft }: Props) {
             >
               {lead.status}
             </Badge>
+            <Link
+              href={`/audit/${lead.publicId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 h-7 px-3 text-[11px] font-medium border border-border/60 bg-card hover:bg-card/80 text-muted-foreground hover:text-foreground rounded-full transition-colors duration-150"
+            >
+              <FileSearch className="w-3 h-3 shrink-0" strokeWidth={1.5} />
+              Public Audit Report
+              <ExternalLink className="w-2.5 h-2.5 shrink-0 opacity-50" />
+            </Link>
           </div>
         </div>
       </div>
@@ -243,7 +262,7 @@ export function LeadDetail({ lead, draft }: Props) {
               {lead.website && (
                 <div className="flex items-start gap-2.5">
                   <Globe className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0 mt-0.5" strokeWidth={1.5} />
-                  <a href={`https://${lead.website}`} target="_blank" rel="noopener noreferrer" className="text-lp-amber hover:underline flex items-center gap-1 break-all">
+                  <a href={`${lead.website}`} target="_blank" rel="noopener noreferrer" className="text-lp-amber hover:underline flex items-center gap-1 break-all">
                     {lead.website}<ExternalLink className="w-3 h-3 shrink-0" />
                   </a>
                 </div>
@@ -262,7 +281,8 @@ export function LeadDetail({ lead, draft }: Props) {
                 <div className="flex items-center gap-2.5">
                   <Star className="w-3.5 h-3.5 text-lp-amber shrink-0" strokeWidth={1.5} />
                   <span className="text-foreground text-xs font-mono">
-                    {lead.googleRating} ★ · {lead.reviewCount} reviews
+                    {lead.googleRating} ★
+                    {lead.reviewCount > 0 ? ` · ${lead.reviewCount} reviews` : ""}
                   </span>
                 </div>
               )}

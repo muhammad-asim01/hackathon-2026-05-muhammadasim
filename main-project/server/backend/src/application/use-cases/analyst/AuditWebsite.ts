@@ -40,10 +40,12 @@ function computeScore(
   psiMobileScore: number | null
 ): number {
   if (!place.website) {
-    // No website — return a minimal score based on social proof signals only
+    // No website — score based on social proof signals only (max 20).
+    // Floor at 1 so that null = "not yet audited" and 1–20 = "audited, no web presence".
+    // A score of 0 would be indistinguishable from "not audited" in the frontend.
     const ratingScore = ((place.googleRating ?? 0) / 5) * 10;
     const reviewScore = Math.min((place.reviewCount / 200) * 10, 10);
-    return Math.min(Math.round(ratingScore + reviewScore), 20);
+    return Math.max(1, Math.min(Math.round(ratingScore + reviewScore), 20));
   }
 
   // ── SSL: 10 pts ────────────────────────────────────────────────────────────

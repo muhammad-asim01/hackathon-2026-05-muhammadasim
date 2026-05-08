@@ -20,6 +20,8 @@ export interface RunUpdateData {
 export interface IRunRepository {
   create(prompt: string): Promise<PipelineRun>;
   findById(id: string): Promise<PipelineRun | null>;
+  /** Single DB round-trip: fetches the run AND its events together (used by SSE handler). */
+  findByIdWithEvents(id: string): Promise<{ run: PipelineRun; events: readonly RunEvent[] } | null>;
   findMany(options?: { limit?: number; offset?: number }): Promise<readonly PipelineRun[]>;
   update(id: string, data: RunUpdateData): Promise<PipelineRun>;
   addEvent(runId: string, event: CreateRunEventData): Promise<RunEvent>;

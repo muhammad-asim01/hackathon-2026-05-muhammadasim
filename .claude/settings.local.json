@@ -144,7 +144,9 @@
       "mcp__notion__API-post-search",
       "mcp__a1e0d7ce-d776-40c7-8589-4daca6bd4618__notion-search",
       "mcp__a1e0d7ce-d776-40c7-8589-4daca6bd4618__notion-create-pages",
-      "mcp__a1e0d7ce-d776-40c7-8589-4daca6bd4618__notion-update-page"
+      "mcp__a1e0d7ce-d776-40c7-8589-4daca6bd4618__notion-update-page",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

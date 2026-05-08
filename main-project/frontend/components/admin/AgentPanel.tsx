@@ -22,6 +22,7 @@ import {
   useLiveRun,
   useRecentRuns,
 } from "@/hooks/useAgent";
+import type { RunEvent } from "@/lib/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,11 +38,16 @@ interface PipelineStep {
 // ─── Pipeline step definitions ────────────────────────────────────────────────
 
 const STEPS: PipelineStep[] = [
-  { id: "scout",   label: "Scout Agent",   description: "Discover via OpenStreetMap",        icon: Search   },
-  { id: "analyst", label: "Analyst Agent", description: "Audit websites & score quality",    icon: BarChart2 },
-  { id: "writer",  label: "Writer Agent",  description: "Draft 180-word emails via Claude",  icon: Mail     },
-  { id: "tracker", label: "Tracker Agent", description: "Log leads to CRM",                  icon: Database },
+  { id: "scout",   label: "Scout Agent",   description: "Discover via OpenStreetMap",       icon: Search    },
+  { id: "analyst", label: "Analyst Agent", description: "Audit websites & score quality",   icon: BarChart2 },
+  { id: "writer",  label: "Writer Agent",  description: "Draft 180-word emails via Claude", icon: Mail      },
+  { id: "tracker", label: "Tracker Agent", description: "Log leads to CRM",                 icon: Database  },
 ];
+
+// Agents that run exactly once per pipeline (one terminal SUCCESS event).
+// Analyst / Writer / Tracker run once PER LEAD — they stay "running" until
+// the entire pipeline finishes, even after emitting partial SUCCESS events.
+const ONE_SHOT_AGENTS = new Set(["scout", "reporter"]);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -51,6 +57,13 @@ function relativeTime(iso: string): string {
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
   return `${Math.floor(mins / 60)}h ago`;
+}
+
+/** Count events emitted by a specific agent at a specific level. */
+function countAgentEvents(events: RunEvent[], agentId: string, level: string): number {
+  return events.filter(
+    (e) => e.agentName.toLowerCase() === agentId && e.level === level
+  ).length;
 }
 
 // ─── Step status indicator ────────────────────────────────────────────────────
@@ -82,14 +95,15 @@ export function AgentPanel() {
   const [shaking, setShaking] = useState(false);
   const [runId,   setRunId]   = useState<string | null>(null);
 
-  const startPipeline = useStartPipeline();
-  const { data: run }  = useLiveRun(runId);
-  const { data: recentRuns = [] } = useRecentRuns();
+  const startPipeline               = useStartPipeline();
+  const { data: run }               = useLiveRun(runId);
+  const { data: recentRuns = [] }   = useRecentRuns();
 
   const runStatus = run?.status ?? (runId ? "queued" : "idle");
   const isRunning = runStatus === "running" || runStatus === "queued";
   const isDone    = runStatus === "complete";
   const isFailed  = runStatus === "failed";
+  const isActive  = isRunning;
 
   function handleRun() {
     if (isRunning) return;
@@ -100,7 +114,7 @@ export function AgentPanel() {
       setTimeout(() => setShaking(false), 500);
       return;
     }
-    setRunId(null); // reset previous run view
+    setRunId(null);
     startPipeline.mutate(
       { prompt: `${n} in ${c}` },
       { onSuccess: ({ runId: id }) => setRunId(id) }
@@ -111,20 +125,61 @@ export function AgentPanel() {
     if (e.key === "Enter") handleRun();
   }
 
-  // Derive step state from the live events stream — updates in real-time as SSE events arrive.
-  // A "queued" run has no events yet; only mark stages "running" when status is "running".
+  // ─── Step status derivation ─────────────────────────────────────────────────
+  //
+  // Core rules:
+  //  • ONE_SHOT agents (scout): done as soon as their single SUCCESS event fires.
+  //  • Multi-lead agents (analyst/writer/tracker): stay "running" while the
+  //    pipeline is active — even after partial SUCCESS events for individual leads,
+  //    more leads may still be in-flight.
+  //  • When the run is complete/failed: settle into final state from event history.
+  //  • No events at all → idle (shows as "SKIPPED" when run has ended).
+
   function stepStatus(stepId: string): StepStatus {
-    const evts = (run?.events ?? []).filter(
-      (e) => e.agentName.toLowerCase() === stepId
-    );
-    if (!evts.length) return "idle";
-    if (evts.some((e) => e.level === "success")) return "done";
-    if (evts.some((e) => e.level === "error"))   return "error";
-    // INFO/WARNING only — still in-flight unless the whole run has already finished
+    const events    = run?.events ?? [];
+    const stepEvts  = events.filter((e) => e.agentName.toLowerCase() === stepId);
+
+    if (!stepEvts.length) return "idle";
+
+    const hasSuccess  = stepEvts.some((e) => e.level === "success");
+    const hasError    = stepEvts.some((e) => e.level === "error");
     const runFinished = run?.status === "complete" || run?.status === "failed";
-    if (runFinished) return "done";
-    // Only spin if the run is actually running (not still queued)
-    return run?.status === "running" ? "running" : "idle";
+
+    // One-shot agents complete after their single terminal SUCCESS event
+    if (ONE_SHOT_AGENTS.has(stepId) && hasSuccess) return "done";
+
+    // Multi-lead agents stay "running" until the whole pipeline finishes
+    if (!runFinished) return "running";
+
+    // Run is done — derive final state from accumulated event history
+    if (hasSuccess)           return "done";
+    if (hasError)             return "error";
+    return "done"; // had events but only INFO/WARNING → completed gracefully
+  }
+
+  // ─── Per-step progress counter ──────────────────────────────────────────────
+  //
+  // Counts SUCCESS events in the live event stream as a proxy for "N leads
+  // processed" — accurate and always up-to-date without extra API calls.
+  // Total comes from run counters (set by backend at each pipeline stage).
+
+  function stepProgress(stepId: string): { done: number; total: number } | null {
+    if (ONE_SHOT_AGENTS.has(stepId)) return null;
+
+    const events       = run?.events ?? [];
+    const successCount = countAgentEvents(events, stepId, "success");
+
+    // "total" for each stage = how many leads were eligible for that stage.
+    // During a live run these come from the initial snapshot; they're updated
+    // continuously because leadsFound/leadsScored are set by runRepo.update()
+    // after each batch, and the "done" SSE message carries the final values.
+    const total =
+      stepId === "analyst" ? (run?.leadsFound   ?? 0) :
+      stepId === "writer"  ? (run?.leadsScored  ?? 0) :
+      stepId === "tracker" ? (run?.leadsScored  ?? 0) : 0;
+
+    if (successCount === 0 && total === 0) return null;
+    return { done: successCount, total };
   }
 
   return (
@@ -145,11 +200,11 @@ export function AgentPanel() {
           className="flex flex-col gap-6"
           style={{ animation: "lp-slide-up 0.45s ease both", animationDelay: "0.05s", animationFillMode: "both" }}
         >
-          {/* Form card — shakes on submit-with-empty-fields */}
+          {/* Form card */}
           <div
             className={cn(
               "border border-border/60 bg-card/40 transition-all duration-300",
-              isRunning && "border-lp-amber/20",
+              isActive && "border-lp-amber/20",
             )}
             style={shaking ? { animation: "lp-shake 0.4s ease both" } : undefined}
           >
@@ -161,7 +216,7 @@ export function AgentPanel() {
               >
                 Business type / niche
               </label>
-              <div className="relative flex items-center gap-3">
+              <div className="flex items-center gap-3">
                 <Briefcase className="w-3.5 h-3.5 text-muted-foreground/30 shrink-0" strokeWidth={1.5} />
                 <input
                   id="lp-niche"
@@ -170,7 +225,7 @@ export function AgentPanel() {
                   value={niche}
                   onChange={(e) => setNiche(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  disabled={isRunning}
+                  disabled={isActive}
                   autoComplete="off"
                   className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/25 outline-none border-b border-transparent focus:border-lp-amber/35 pb-0.5 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
@@ -185,7 +240,7 @@ export function AgentPanel() {
               >
                 City or region
               </label>
-              <div className="relative flex items-center gap-3">
+              <div className="flex items-center gap-3">
                 <MapPin className="w-3.5 h-3.5 text-muted-foreground/30 shrink-0" strokeWidth={1.5} />
                 <input
                   id="lp-city"
@@ -194,7 +249,7 @@ export function AgentPanel() {
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  disabled={isRunning}
+                  disabled={isActive}
                   autoComplete="off"
                   className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/25 outline-none border-b border-transparent focus:border-lp-amber/35 pb-0.5 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
@@ -205,18 +260,18 @@ export function AgentPanel() {
             <div className="p-5">
               <button
                 onClick={handleRun}
-                disabled={isRunning}
-                aria-label={isRunning ? "Pipeline running" : "Run the lead pipeline"}
+                disabled={isActive}
+                aria-label={isActive ? "Pipeline running" : "Run the lead pipeline"}
                 className={cn(
                   "w-full h-11 flex items-center justify-center gap-2.5",
                   "text-sm font-semibold tracking-wide rounded-full",
                   "transition-all duration-200",
-                  isRunning
+                  isActive
                     ? "bg-lp-amber/12 text-lp-amber/50 cursor-not-allowed border border-lp-amber/20"
                     : "bg-lp-amber text-stone-900 hover:bg-[#d4bb70] active:scale-[0.985] cursor-pointer",
                 )}
               >
-                {isRunning ? (
+                {isActive ? (
                   <>
                     <span className="w-3.5 h-3.5 rounded-full border-2 border-lp-amber/25 border-t-lp-amber/65 animate-spin" />
                     Pipeline running…
@@ -229,7 +284,7 @@ export function AgentPanel() {
                 )}
               </button>
               <p className="mt-2 text-center text-[11px] text-muted-foreground/30">
-                {isRunning
+                {isActive
                   ? "Watch the pipeline execute step by step →"
                   : "Fill both fields and press Enter or click"}
               </p>
@@ -286,12 +341,9 @@ export function AgentPanel() {
         <div
           className={cn(
             "border flex flex-col transition-all duration-500",
-            isRunning
-              ? "border-lp-amber/20 bg-lp-amber/[0.02]"
-              : isDone
-              ? "border-lp-green/20 bg-lp-green/[0.02]"
-              : isFailed
-              ? "border-lp-red/20 bg-lp-red/[0.02]"
+            isActive  ? "border-lp-amber/20 bg-lp-amber/[0.02]"
+              : isDone  ? "border-lp-green/20 bg-lp-green/[0.02]"
+              : isFailed ? "border-lp-red/20  bg-lp-red/[0.02]"
               : "border-border/60 bg-card/20",
           )}
           style={{ animation: "lp-slide-up 0.45s ease both", animationDelay: "0.1s", animationFillMode: "both" }}
@@ -302,12 +354,12 @@ export function AgentPanel() {
               <div
                 className={cn(
                   "w-2 h-2 rounded-full transition-colors duration-500",
-                  isRunning ? "bg-lp-amber"
+                  isActive  ? "bg-lp-amber"
                     : isDone  ? "bg-lp-green"
                     : isFailed ? "bg-lp-red"
                     : "bg-border/80",
                 )}
-                style={isRunning ? { animation: "lp-glow-pulse 1.6s ease-in-out infinite" } : undefined}
+                style={isActive ? { animation: "lp-glow-pulse 1.6s ease-in-out infinite" } : undefined}
               />
               <p className="text-sm font-medium text-foreground">Pipeline status</p>
               {runId && (
@@ -319,7 +371,7 @@ export function AgentPanel() {
             <span
               className={cn(
                 "text-[9px] uppercase tracking-[0.18em] font-mono font-semibold transition-colors duration-300",
-                isRunning  ? "text-lp-amber/70"
+                isActive   ? "text-lp-amber/70"
                   : isDone ? "text-lp-green/70"
                   : isFailed ? "text-lp-red/70"
                   : "text-muted-foreground/30",
@@ -371,14 +423,14 @@ export function AgentPanel() {
             {runStatus !== "idle" && (
               <div>
                 {STEPS.map((step, idx) => {
-                  const status = stepStatus(step.id);
-                  const stepEvents = (run?.events ?? []).filter(
+                  const status    = stepStatus(step.id);
+                  const progress  = stepProgress(step.id);
+                  const stepEvts  = (run?.events ?? []).filter(
                     (e) => e.agentName.toLowerCase() === step.id
                   );
-                  const Icon = step.icon;
-                  // When pipeline is done and a step never received any events, it was skipped
+                  const Icon      = step.icon;
                   const isSkipped = status === "idle" && (isDone || isFailed);
-                  const hasErrors = stepEvents.some((e) => e.level === "error");
+                  const hasErrors = stepEvts.some((e) => e.level === "error");
 
                   return (
                     <div key={step.id}>
@@ -393,6 +445,7 @@ export function AgentPanel() {
                         </div>
 
                         <div className="flex-1 min-w-0">
+                          {/* Step name row */}
                           <div className="flex items-center justify-between gap-2">
                             <p
                               className={cn(
@@ -406,75 +459,98 @@ export function AgentPanel() {
                             >
                               {step.label}
                             </p>
-                            {status === "running" && (
-                              <span
-                                className="text-[9px] uppercase tracking-[0.18em] font-mono text-lp-amber/55 shrink-0"
-                                style={{ animation: "lp-glow-pulse 2s ease-in-out infinite" }}
-                              >
-                                running
-                              </span>
-                            )}
-                            {status === "done" && (
-                              <span
-                                className={cn(
-                                  "text-[9px] uppercase tracking-[0.18em] font-mono shrink-0",
-                                  hasErrors ? "text-lp-amber/55" : "text-lp-green/50",
-                                )}
-                                style={{ animation: "lp-fade-in 0.3s ease both" }}
-                              >
-                                {hasErrors ? "partial" : "done"}
-                              </span>
-                            )}
-                            {status === "error" && (
-                              <span className="text-[9px] uppercase tracking-[0.18em] font-mono text-lp-red/60 shrink-0">
-                                failed
-                              </span>
-                            )}
-                            {isSkipped && (
-                              <span className="text-[9px] uppercase tracking-[0.18em] font-mono text-muted-foreground/25 shrink-0">
-                                skipped
-                              </span>
-                            )}
+
+                            {/* Right-side status badge */}
+                            <div className="flex items-center gap-2 shrink-0">
+                              {/* Live progress counter — shown for multi-lead steps */}
+                              {progress !== null && (status === "running" || status === "done") && (
+                                <span
+                                  className={cn(
+                                    "text-[10px] font-mono tabular-nums",
+                                    status === "running"
+                                      ? "text-lp-amber/60"
+                                      : "text-lp-green/50",
+                                  )}
+                                >
+                                  {progress.total > 0
+                                    ? `${progress.done} / ${progress.total}`
+                                    : progress.done > 0
+                                    ? `${progress.done} done`
+                                    : null}
+                                </span>
+                              )}
+
+                              {status === "running" && (
+                                <span
+                                  className="text-[9px] uppercase tracking-[0.18em] font-mono text-lp-amber/55"
+                                  style={{ animation: "lp-glow-pulse 2s ease-in-out infinite" }}
+                                >
+                                  running
+                                </span>
+                              )}
+                              {status === "done" && (
+                                <span
+                                  className={cn(
+                                    "text-[9px] uppercase tracking-[0.18em] font-mono",
+                                    hasErrors ? "text-lp-amber/55" : "text-lp-green/50",
+                                  )}
+                                  style={{ animation: "lp-fade-in 0.3s ease both" }}
+                                >
+                                  {hasErrors ? "partial" : "done"}
+                                </span>
+                              )}
+                              {status === "error" && (
+                                <span className="text-[9px] uppercase tracking-[0.18em] font-mono text-lp-red/60">
+                                  failed
+                                </span>
+                              )}
+                              {isSkipped && (
+                                <span className="text-[9px] uppercase tracking-[0.18em] font-mono text-muted-foreground/25">
+                                  skipped
+                                </span>
+                              )}
+                            </div>
                           </div>
 
+                          {/* Step description */}
                           <p className="text-[11px] text-muted-foreground/40 mt-0.5">
                             {step.description}
                           </p>
 
-                          {/* Real log lines from backend events */}
-                          {stepEvents.length > 0 && (
+                          {/* Live log lines from backend events */}
+                          {stepEvts.length > 0 && (
                             <div className="mt-2.5 space-y-1">
-                              {stepEvents.map((e) => {
-                                  const isErr  = e.level === "error";
-                                  const isWarn = e.level === "warning";
-                                  const isOk   = e.level === "success";
-                                  return (
-                                    <p
-                                      key={e.id}
+                              {stepEvts.map((e) => {
+                                const isErr  = e.level === "error";
+                                const isWarn = e.level === "warning";
+                                const isOk   = e.level === "success";
+                                return (
+                                  <p
+                                    key={e.id}
+                                    className={cn(
+                                      "text-[11px] font-mono leading-relaxed",
+                                      isErr  ? "text-lp-red/70"
+                                        : isWarn ? "text-lp-amber/55"
+                                        : isOk   ? "text-lp-green/65"
+                                        : "text-muted-foreground/45",
+                                    )}
+                                    style={{ animation: "lp-fade-in 0.3s ease both" }}
+                                  >
+                                    <span
                                       className={cn(
-                                        "text-[11px] font-mono leading-relaxed",
-                                        isErr  ? "text-lp-red/70"
-                                          : isWarn ? "text-lp-amber/55"
-                                          : isOk   ? "text-lp-green/65"
-                                          : "text-muted-foreground/45",
+                                        "mr-1.5 select-none",
+                                        isErr  ? "text-lp-red/50"
+                                          : isWarn ? "text-lp-amber/40"
+                                          : isOk   ? "text-lp-green/50"
+                                          : "text-lp-amber/20",
                                       )}
-                                      style={{ animation: "lp-fade-in 0.3s ease both" }}
                                     >
-                                      <span
-                                        className={cn(
-                                          "mr-1.5 select-none",
-                                          isErr  ? "text-lp-red/50"
-                                            : isWarn ? "text-lp-amber/40"
-                                            : isOk   ? "text-lp-green/50"
-                                            : "text-lp-amber/20",
-                                        )}
-                                      >
-                                        {isErr ? "✕" : isWarn ? "!" : isOk ? "✓" : "›"}
-                                      </span>
-                                      {e.message}
-                                    </p>
-                                  );
-                                })}
+                                      {isErr ? "✕" : isWarn ? "!" : isOk ? "✓" : "›"}
+                                    </span>
+                                    {e.message}
+                                  </p>
+                                );
+                              })}
                             </div>
                           )}
                         </div>

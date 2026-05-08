@@ -46,6 +46,17 @@ export class RunRepository implements IRunRepository {
     return row ? runToDomain(row) : null;
   }
 
+  async findByIdWithEvents(
+    id: string
+  ): Promise<{ run: PipelineRun; events: readonly RunEvent[] } | null> {
+    const row = await this.prisma.pipelineRun.findUnique({
+      where: { id },
+      include: { events: { orderBy: { createdAt: "asc" } } },
+    });
+    if (!row) return null;
+    return { run: runToDomain(row), events: row.events.map(eventToDomain) };
+  }
+
   async findMany(
     options?: { limit?: number; offset?: number }
   ): Promise<readonly PipelineRun[]> {
