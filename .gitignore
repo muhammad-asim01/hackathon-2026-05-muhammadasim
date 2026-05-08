@@ -49,3 +49,8 @@ coverage/
 .nyc_output/
 
 .vercel
+.claude
+.agents
+playwright-report
+test-results
+tests
