@@ -149,7 +149,10 @@
       "Bash(git commit -m ' *)",
       "Bash(findstr /i \"next-themes\\\\|theme\")",
       "Bash(findstr \"next-themes\")",
-      "Bash(findstr /i \"next-themes\" \"F:\\\\office\\\\cloudi-code\\\\main-project\\\\frontend\\\\package.json\")"
+      "Bash(findstr /i \"next-themes\" \"F:\\\\office\\\\cloudi-code\\\\main-project\\\\frontend\\\\package.json\")",
+      "Bash(git -C \"F:/office/cloudi-code\" log --oneline --all -- \"main-project/frontend/.env.local\")",
+      "Bash(git -C \"F:/office/cloudi-code\" show 406521f --stat)",
+      "Bash(npx eslint *)"
     ]
   }
 }

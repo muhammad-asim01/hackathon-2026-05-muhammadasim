@@ -68,7 +68,7 @@ const router = Router();
 // ─── POST /api/pipeline/run ───────────────────────────────────────────────────
 
 const startRunSchema = z.object({
-  prompt:         z.string().min(3, "prompt must be at least 3 characters"),
+  prompt:         z.string().min(3, "prompt must be at least 3 characters").max(2000, "prompt must be 2000 characters or fewer"),
   scoreThreshold: z.number().int().min(0).max(100).optional(),
   wordLimit:      z.number().int().min(50).max(500).optional(),
 });

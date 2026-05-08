@@ -56,8 +56,8 @@ export function errorHandler(
         code: err.code,
         message: err.message,
         ...(err.retryable && { retryable: true }),
-        ...(err.context && process.env.NODE_ENV !== "production" && {
-          // Include context in dev/test for easier debugging — stripped in prod
+        ...(err.context !== undefined && process.env.NODE_ENV !== "production" && {
+          context: err.context,
         }),
       },
     };

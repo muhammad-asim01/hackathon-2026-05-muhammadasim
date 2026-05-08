@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — sift.ai",
+  title: "Privacy Policy",
   description:
     "sift.ai is self-hosted. Your leads, API keys, and email drafts never leave your server. Read our full privacy policy.",
 };

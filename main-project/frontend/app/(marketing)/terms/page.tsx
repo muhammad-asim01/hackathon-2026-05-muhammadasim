@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — sift.ai",
+  title: "Terms of Service",
   description:
     "MIT-licensed and self-hosted. You control the data. Read the sift.ai terms of service before installing or using the software.",
 };

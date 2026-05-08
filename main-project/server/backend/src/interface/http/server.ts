@@ -16,6 +16,7 @@ import helmet from "helmet";
 import cors from "cors";
 import compression from "compression";
 import pinoHttp from "pino-http";
+import rateLimit from "express-rate-limit";
 import { env } from "@/config/env";
 import { logger } from "@/utils/logger";
 import { errorHandler } from "@/interface/http/middleware/errorHandler";
@@ -27,6 +28,38 @@ import { publicRouter } from "@/interface/http/routes/public.router";
 import { settingsRouter } from "@/interface/http/routes/settings.router";
 import { analyticsRouter } from "@/interface/http/routes/analytics.router";
 import { debugRouter } from "@/interface/http/routes/debug.router";
+
+// ─── Rate limiters ────────────────────────────────────────────────────────────
+
+const rateLimitMessage = (code: string, message: string) =>
+  JSON.stringify({ ok: false, error: { code, message } });
+
+/** Global cap: 200 requests per 15 minutes per IP across all endpoints. */
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: rateLimitMessage("RATE_LIMITED", "Too many requests — try again later"),
+});
+
+/** Pipeline trigger cap: 5 starts per minute per IP (expensive LLM calls). */
+const pipelineLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: rateLimitMessage("RATE_LIMITED", "Pipeline rate limit exceeded — wait before starting another run"),
+});
+
+/** Public audit endpoint cap: 30 requests per minute per IP. */
+const publicLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: rateLimitMessage("RATE_LIMITED", "Too many requests — try again later"),
+});
 
 // ─── App factory ──────────────────────────────────────────────────────────────
 
@@ -40,15 +73,20 @@ export function createApp() {
   // ── Security ──────────────────────────────────────────────────────────────
   app.use(helmet());
 
+  // Deduplicate allowed origins — env.FRONTEND_URL may overlap with hardcoded dev/prod values
   const allowedOrigins = [
-    "http://localhost:3000",
-    "https://saftai.vercel.app",
+    ...new Set([
+      "http://localhost:3000",
+      "https://saftai.vercel.app",
+      env.FRONTEND_URL,
+    ]),
   ];
 
   app.use(
     cors({
       origin: (origin, callback) => {
-        // allow server-to-server or curl requests
+        // Allow server-to-server (no Origin) or explicitly listed origins.
+        // null-origin requests (file://, data:) are blocked intentionally.
         if (!origin) return callback(null, true);
 
         if (allowedOrigins.includes(origin)) {
@@ -63,6 +101,9 @@ export function createApp() {
       allowedHeaders: ["Content-Type", "Authorization"],
     })
   );
+
+  // ── Global rate limit ──────────────────────────────────────────────────────
+  app.use(globalLimiter);
 
   // ── Performance ───────────────────────────────────────────────────────────
   app.use(compression());
@@ -81,6 +122,17 @@ export function createApp() {
         if (res.statusCode >= 400) return "warn";
         return "info";
       },
+      // Redact JWT tokens passed as ?token= in SSE EventSource requests
+      serializers: {
+        req(req: Record<string, unknown> & { url?: string }) {
+          return {
+            ...req,
+            url: typeof req.url === "string"
+              ? req.url.replace(/([?&])token=[^&]*/gi, "$1token=[REDACTED]")
+              : req.url,
+          };
+        },
+      },
     })
   );
 
@@ -90,15 +142,16 @@ export function createApp() {
 
   // ── Routes ────────────────────────────────────────────────────────────────
   app.use("/api/health", healthRouter);
-  app.use("/api/public", publicRouter);
+  app.use("/api/public", publicLimiter, publicRouter);
   app.use("/api/leads", leadsRouter);
+  app.use("/api/pipeline/run", pipelineLimiter);  // tighter cap on expensive trigger
   app.use("/api/pipeline", pipelineRouter);
   app.use("/api/emails", emailsRouter);
   app.use("/api/settings", settingsRouter);
   app.use("/api/analytics", analyticsRouter);
 
   // ── Debug routes — development only ──────────────────────────────────────
-  if (env.NODE_ENV !== "production") {
+  if (env.NODE_ENV === "development") {
     app.use("/api/debug", debugRouter);
   }
 

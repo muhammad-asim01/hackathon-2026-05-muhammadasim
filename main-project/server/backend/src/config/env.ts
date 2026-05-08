@@ -46,7 +46,16 @@ const schema = z.object({
     .default("http://localhost:3000"),
 
   // ── Anthropic (optional until pipeline agents are used) ───────────────────
-  ANTHROPIC_API_KEY: z.string().optional().default("sk-ant-placeholder"),
+  // In production, require a real key starting with "sk-ant-".
+  // In dev/test, allow omission — MockLLMAdapter is used automatically.
+  ANTHROPIC_API_KEY: z
+    .string()
+    .optional()
+    .default("sk-ant-placeholder")
+    .refine(
+      (v) => process.env.NODE_ENV !== "production" || v.startsWith("sk-ant-"),
+      { message: "ANTHROPIC_API_KEY must be a valid Anthropic key (starts with sk-ant-) in production" }
+    ),
 
   // Set MOCK_LLM=true to use MockLLMAdapter instead of real Claude API.
   // Auto-enabled when ANTHROPIC_API_KEY is the placeholder default.

@@ -4,12 +4,16 @@ import Credentials from "next-auth/providers/credentials";
 import { SignJWT } from "jose";
 import { authConfig } from "@/auth.config";
 
-const devCredentials = process.env.NODE_ENV === "development"
+// Dev bypass password — read from env so it is never hardcoded.
+// Set NEXTAUTH_DEV_PASSWORD in .env.local for local development.
+const DEV_PASSWORD = process.env.NEXTAUTH_DEV_PASSWORD ?? "";
+
+const devCredentials = process.env.NODE_ENV === "development" && DEV_PASSWORD
   ? [Credentials({
       name: "Dev Login",
       credentials: { password: { label: "Dev password", type: "password" } },
       async authorize(creds) {
-        if (creds?.password === "dev") {
+        if (DEV_PASSWORD && creds?.password === DEV_PASSWORD) {
           return { id: "dev", name: "Dev Admin", email: "dev@sift.ai.dev" };
         }
         return null;
@@ -28,7 +32,7 @@ async function mintBackendToken(sub: string, email: string, name?: string): Prom
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("7d")
+    .setExpirationTime("1d")
     .sign(secret);
 }
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ContactForm } from "./contact-form";
 
 export const metadata: Metadata = {
-  title: "Contact — sift.ai",
+  title: "Contact",
   description:
     "Have a question about sift.ai? Feature request, bug report, or just curious how the pipeline works. We read every message and respond within 24 hours.",
 };

@@ -23,7 +23,6 @@ router.get("/", async (_req: Request, res: Response): Promise<void> => {
     res.json({
       ok: true,
       db: "up",
-      env: process.env.NODE_ENV ?? "unknown",
     });
   } catch (err) {
     logger.error({ err }, "Health check: database unreachable");

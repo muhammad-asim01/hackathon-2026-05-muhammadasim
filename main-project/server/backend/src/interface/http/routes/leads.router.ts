@@ -47,8 +47,8 @@ function resolveStatusFilter(status: string): LeadStatus | readonly LeadStatus[]
     case "cold":
       return ["COLD", "SKIPPED"];
     default:
-      // Passthrough backend status values directly
-      return status as LeadStatus;
+      // Reject unknown status values — prevents arbitrary strings reaching the DB query
+      throw new ValidationError(`Unknown status filter: "${status}". Valid values: new, contacted, approved, rejected, cold`);
   }
 }
 

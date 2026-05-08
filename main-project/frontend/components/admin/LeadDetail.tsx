@@ -4,10 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, Globe, Phone, MapPin, Star, MessageSquare, Gauge,
-  Smartphone, AlertTriangle, CheckCircle2, XCircle, Snowflake, Pencil, ExternalLink, FileSearch,
+  Smartphone, AlertTriangle, CheckCircle2, XCircle, Pencil, ExternalLink, FileSearch,
 } from "lucide-react";
 import { useApproveEmail, useRejectEmail, useEditEmail } from "@/hooks/useApprovals";
-import { useUpdateLead } from "@/hooks/useLeads";
 import { scoreVariant, scoreTier, type Lead, type EmailDraft, type ReviewSentiment } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -83,7 +82,6 @@ function ActionBar({ draft, leadId, leadStatus }: { draft: EmailDraft | null; le
   const approve = useApproveEmail();
   const reject = useRejectEmail();
   const edit = useEditEmail();
-  const updateLead = useUpdateLead(leadId);
 
   if (!draft) {
     return (

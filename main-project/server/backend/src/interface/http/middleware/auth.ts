@@ -100,8 +100,8 @@ export function requireAuth(
     return;
   }
 
-  // Dev QA bypass — never reaches production (NODE_ENV guard)
-  if (process.env.NODE_ENV === "development" && token === "dev-qa-bypass") {
+  // Dev QA bypass — never reaches production (NODE_ENV guard via validated env)
+  if (env.NODE_ENV === "development" && token === "dev-qa-bypass") {
     req.user = { sub: "dev", email: "dev@sift.ai.dev", name: "Dev Admin" };
     next();
     return;

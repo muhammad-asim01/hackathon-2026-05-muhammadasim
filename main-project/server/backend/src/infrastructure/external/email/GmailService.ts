@@ -52,8 +52,10 @@ export class GmailService implements IEmailSender {
 
     const gmail = google.gmail({ version: "v1", auth });
 
-    const fromHeader = input.fromName
-      ? `"${input.fromName}" <${this.config.senderEmail}>`
+    // Strip CRLF to prevent email header injection via fromName
+    const safeName = input.fromName?.replace(/[\r\n]+/g, " ").trim();
+    const fromHeader = safeName
+      ? `"${safeName}" <${this.config.senderEmail}>`
       : this.config.senderEmail;
 
     // RFC 2822 message — Gmail API requires base64url encoding
