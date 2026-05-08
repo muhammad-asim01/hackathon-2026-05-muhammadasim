@@ -20,20 +20,12 @@ export interface RunPipelineOutput {
   readonly runId: string;
 }
 
-// Max 3 concurrent website crawls — Playwright launches a full browser per
-// crawl; t3.micro has ~1 GB usable RAM after OS/Node overhead.
-// Cheerio secondary-page passes are lightweight (no browser), so 3 is safe.
+// Max 3 concurrent website crawls per batch — Playwright launches a full browser
+// per crawl; t3.micro has ~1 GB usable RAM after OS/Node overhead.
 const BATCH_SIZE = 3;
 
-async function batchProcess<T>(
-  items: readonly T[],
-  fn: (item: T) => Promise<void>
-): Promise<void> {
-  for (let i = 0; i < items.length; i += BATCH_SIZE) {
-    const batch = items.slice(i, i + BATCH_SIZE);
-    await Promise.all(batch.map(fn));
-  }
-}
+// Stop crawling new batches once this many leads with emails have been found.
+const EMAIL_STOP_COUNT = 3;
 
 export class RunPipeline {
   constructor(
@@ -79,6 +71,8 @@ export class RunPipeline {
     let leadsFound = 0;
     let leadsScored = 0;
     let leadsDrafted = 0;
+    let emailsFoundCount = 0;
+    let stopEarly = false;
 
     try {
       // ── Scout ──────────────────────────────────────────────────────────────────
@@ -104,7 +98,10 @@ export class RunPipeline {
         });
       }
 
-      await batchProcess(places, async (place) => {
+      for (let i = 0; i < places.length; i += BATCH_SIZE) {
+        if (stopEarly) break;
+        const batch = places.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(async (place) => {
         const placeLog = log.child({ placeId: place.placeId, business: place.businessName });
 
         const lead = await this.leadRepo.create({
@@ -183,6 +180,8 @@ export class RunPipeline {
 
           // Emit email extraction result
           if (extractedEmails.length > 0) {
+            emailsFoundCount++;
+            if (emailsFoundCount >= EMAIL_STOP_COUNT) stopEarly = true;
             await this.runRepo.addEvent(runId, {
               agentName: "analyst",
               level: "INFO",
@@ -313,7 +312,17 @@ export class RunPipeline {
           message: `${place.businessName} is pending approval`,
           payload: { placeId: place.placeId, score: auditScore },
         });
-      });
+        }));
+      }
+
+      if (stopEarly) {
+        await this.runRepo.addEvent(runId, {
+          agentName: "pipeline",
+          level: "INFO",
+          message: `Stopped early — ${EMAIL_STOP_COUNT} leads with emails found`,
+          payload: { emailsFoundCount },
+        });
+      }
 
       // ── Finalise ───────────────────────────────────────────────────────────────
       await this.runRepo.update(runId, {

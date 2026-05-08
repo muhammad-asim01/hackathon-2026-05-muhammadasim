@@ -232,15 +232,30 @@ function DraftCard({ draft, index }: { draft: EmailDraft; index: number }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-type FilterTab = "pending" | "approved" | "rejected" | "sent" | "all";
+type FilterTab = "pending" | "email-found" | "approved" | "rejected" | "sent" | "all";
 
 const TABS: { key: FilterTab; label: string }[] = [
-  { key: "pending",  label: "Pending"  },
-  { key: "approved", label: "Approved" },
-  { key: "sent",     label: "Sent"     },
-  { key: "rejected", label: "Rejected" },
-  { key: "all",      label: "All"      },
+  { key: "pending",     label: "Pending"     },
+  { key: "email-found", label: "Email Found" },
+  { key: "approved",    label: "Approved"    },
+  { key: "sent",        label: "Sent"        },
+  { key: "rejected",    label: "Rejected"    },
+  { key: "all",         label: "All"         },
 ];
+
+function filterDrafts(tab: FilterTab, drafts: EmailDraft[]): EmailDraft[] {
+  if (tab === "all") return drafts;
+  if (tab === "email-found") return drafts.filter((d) => d.status === "pending" && !!d.recipientEmail);
+  return drafts.filter((d) => d.status === tab);
+}
+
+function sortEmailFirst(drafts: EmailDraft[]): EmailDraft[] {
+  return [...drafts].sort((a, b) => {
+    const aHas = a.recipientEmail ? 0 : 1;
+    const bHas = b.recipientEmail ? 0 : 1;
+    return aHas - bHas;
+  });
+}
 
 export function ApprovalsQueue() {
   const [tab, setTab] = useState<FilterTab>("pending");
@@ -248,11 +263,13 @@ export function ApprovalsQueue() {
   // all statuses so it must load the full set, not rely on the backend default of 10.
   const { data: allDrafts = [], isLoading } = useApprovals({ limit: 200 });
 
-  const displayed = tab === "all" ? allDrafts : allDrafts.filter((d) => d.status === tab);
+  const displayed = sortEmailFirst(filterDrafts(tab, allDrafts));
   const pendingCount = allDrafts.filter((d) => d.status === "pending").length;
 
   function countFor(key: FilterTab) {
-    return key === "all" ? allDrafts.length : allDrafts.filter((d) => d.status === key).length;
+    if (key === "all") return allDrafts.length;
+    if (key === "email-found") return allDrafts.filter((d) => d.status === "pending" && !!d.recipientEmail).length;
+    return allDrafts.filter((d) => d.status === key).length;
   }
 
   return (
