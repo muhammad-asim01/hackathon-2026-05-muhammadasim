@@ -7,6 +7,7 @@ WORKDIR /app
 
 # Install system deps required by Playwright's managed Chromium
 RUN apt-get update && apt-get install -y \
+    libasound2 \
     libnss3 \
     libatk-bridge2.0-0 \
     libcups2 \
