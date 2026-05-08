@@ -54,3 +54,19 @@ coverage/
 playwright-report
 test-results
 tests
+
+
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.python-version
+.env
+venv/
+.venv/
+
+# Playwright
+playwright/.cache/
+
+# Logs
+*.log

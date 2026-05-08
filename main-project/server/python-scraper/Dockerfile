@@ -5,26 +5,14 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system deps required by Playwright's managed Chromium
-RUN apt-get update && apt-get install -y \
-    libnss3 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libgbm1 \
-    libgtk-3-0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxkbcommon0 \
-    libxrandr2 \
-    xdg-utils \
-    --no-install-recommends && rm -rf /var/lib/apt/lists/*
-
 # Install Python deps
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-RUN playwright install chromium
+
+# Download Playwright's managed Chromium + all its OS dependencies.
+# --with-deps handles libasound2, libnss3, libgtk-3-0, etc. automatically
+# and is Debian-version-aware (avoids libasound2 vs libasound2t64 mismatch).
+RUN playwright install --with-deps chromium
 
 # Copy app source
 COPY . .

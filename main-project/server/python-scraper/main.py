@@ -1,5 +1,5 @@
 """
-Python scraper sidecar — FastAPI service on port 8001.
+Python scraper sidecar — FastAPI service.
 
 Endpoints:
   POST /crawl       → CrawlResponse    (Playwright + httpx hybrid)
@@ -7,21 +7,23 @@ Endpoints:
   GET  /health      → { status: "ok" }
 
 Architecture:
-  - One shared Playwright Browser launched at startup, closed on shutdown.
-  - One shared httpx.AsyncClient for fast HTTP fetches and PSI API calls.
-  - asyncio.Semaphore caps concurrent Playwright contexts at MAX_CONCURRENT_CRAWLS=3,
-    matching Node.js BATCH_SIZE=3 in RunPipeline.ts.
-  - Never exposed to the internet — called only by Node.js on localhost:8001.
+  - FastAPI starts immediately — browser is NOT launched on startup.
+  - Playwright Browser is created lazily on the first /crawl request
+    (asyncio.Lock guarantees a single shared instance across requests).
+  - asyncio.Semaphore caps concurrent Playwright contexts at MAX_CONCURRENT_CRAWLS=3.
+  - httpx.AsyncClient is created in the lifespan (lightweight, no OS deps).
+  - Never exposed to the internet — called only by Node.js.
 """
 
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 
 import httpx
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
-from playwright.async_api import async_playwright
+from playwright.async_api import Browser, Playwright, async_playwright
 
 from config import settings
 from models import CrawlRequest, CrawlResponse, PageSpeedRequest, PageSpeedResponse
@@ -36,52 +38,68 @@ _USER_AGENT = (
     "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 )
 
+# ── Lazy browser state ─────────────────────────────────────────────────────────
+# Browser is created on the first /crawl request, not at startup.
+# This lets FastAPI boot and pass the healthcheck before Chromium loads.
 
-# ── Lifespan — shared resources ───────────────────────────────────────────────
+_pw: Playwright | None = None
+_browser: Browser | None = None
+_browser_lock = asyncio.Lock()
+
+
+async def get_browser() -> Browser:
+    """Return the shared browser, launching it on first call."""
+    global _pw, _browser
+    if _browser is not None and _browser.is_connected():
+        return _browser
+    async with _browser_lock:
+        if _browser is None or not _browser.is_connected():
+            log.info("Launching Playwright browser (first crawl request)...")
+            _pw = await async_playwright().start()
+            _browser = await _pw.chromium.launch(
+                headless=True,
+                args=[
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-gpu",
+                    "--disable-extensions",
+                    "--no-first-run",
+                ],
+            )
+            log.info("Playwright browser ready.")
+    return _browser
+
+
+# ── Lifespan — httpx client only; NO browser here ─────────────────────────────
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    log.info("Starting up: launching Playwright browser and httpx client...")
-
-    pw = await async_playwright().start()
-
-    browser = await pw.chromium.launch(
-        headless=True,
-        args=[
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-dev-shm-usage",
-            "--disable-gpu",
-            "--disable-extensions",
-            "--no-first-run",
-        ],
-    )
+    log.info("Starting up: creating httpx client and semaphore...")
 
     http_client = httpx.AsyncClient(
         headers={"User-Agent": _USER_AGENT},
         follow_redirects=True,
         timeout=httpx.Timeout(30.0),
     )
-
     semaphore = asyncio.Semaphore(settings.MAX_CONCURRENT_CRAWLS)
 
-    app.state.browser = browser
     app.state.http_client = http_client
     app.state.semaphore = semaphore
     app.state.pagespeed_api_key = settings.GOOGLE_PAGESPEED_API_KEY
 
-    log.info(
-        "Ready — Playwright browser launched, httpx client ready. "
-        f"Max concurrent crawls: {settings.MAX_CONCURRENT_CRAWLS}"
-    )
+    log.info("Ready — browser will launch on first /crawl request.")
 
     yield
 
-    log.info("Shutting down: closing browser and httpx client...")
+    log.info("Shutting down: closing httpx client and browser (if started)...")
     await http_client.aclose()
-    await browser.close()
-    await pw.stop()
+    global _browser, _pw
+    if _browser is not None:
+        await _browser.close()
+    if _pw is not None:
+        await _pw.stop()
     log.info("Shutdown complete.")
 
 
@@ -95,6 +113,7 @@ app = FastAPI(title="LocalPulse Scraper Sidecar", version="1.0.0", lifespan=life
 
 @app.get("/health")
 async def health():
+    """Lightweight — no browser dependency. Always responds once FastAPI boots."""
     return {"status": "ok"}
 
 
@@ -102,14 +121,15 @@ async def health():
 async def crawl_route(body: CrawlRequest, request: Request):
     """
     Full website audit: loads page with Playwright, extracts audit signals
-    and contact emails. Mirrors PageCrawler.crawl() in Node.js.
+    and contact emails. Browser is started lazily on first call.
     """
     log.info(f"POST /crawl url={body.url}")
     try:
+        browser = await get_browser()
         async with request.app.state.semaphore:
             result = await crawl(
                 url=body.url,
-                browser=request.app.state.browser,
+                browser=browser,
                 http_client=request.app.state.http_client,
             )
         log.info(f"POST /crawl done url={body.url} emails={len(result.emails)}")
@@ -123,7 +143,6 @@ async def crawl_route(body: CrawlRequest, request: Request):
 async def pagespeed_route(body: PageSpeedRequest, request: Request):
     """
     Fetch Google PageSpeed Insights scores (desktop + mobile in parallel).
-    Mirrors PageSpeedService.analyze() in Node.js.
     """
     log.info(f"POST /pagespeed url={body.url}")
     try:
@@ -152,10 +171,11 @@ async def pagespeed_route(body: PageSpeedRequest, request: Request):
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    PORT = int(os.environ.get("PORT", 8001))
     uvicorn.run(
         "main:app",
         host=settings.HOST,
-        port=settings.PORT,
+        port=PORT,
         reload=False,
         log_level="info",
     )
