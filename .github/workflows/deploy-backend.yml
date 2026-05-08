@@ -1,0 +1,36 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "main-project/server/backend/**"
+      - "tsconfig.base.json"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy Node.js API → Railway
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy backend service
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          railway up \
+            --service hackathon-2026-05-muhammadasim \
+            --environment production \
+            --detach \
+            -m "Backend ${{ github.sha }}"
