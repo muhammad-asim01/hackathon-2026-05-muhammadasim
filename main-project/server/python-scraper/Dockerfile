@@ -24,8 +24,6 @@ RUN apt-get update && apt-get install -y \
 # Install Python deps
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Download Playwright's managed Chromium binaries
 RUN playwright install chromium
 
 # Copy app source
