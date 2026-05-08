@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { googleSignIn, devSignIn } from "@/app/actions/auth";
 
 export const metadata: Metadata = {
@@ -62,9 +63,12 @@ export default function LoginPage() {
 
       <div className="relative z-10 w-full max-w-[400px] px-6">
 
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-2.5 mb-10">
-          <div className="w-8 h-8 bg-lp-amber flex items-center justify-center shrink-0">
+        {/* Logo — click navigates to marketing home */}
+        <Link
+          href="/"
+          className="flex items-center justify-center gap-2.5 mb-10 group"
+        >
+          <div className="w-8 h-8 bg-lp-amber flex items-center justify-center shrink-0 transition-opacity duration-150 group-hover:opacity-75">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
               <path
                 d="M8 1L14 5V11L8 15L2 11V5L8 1Z"
@@ -75,10 +79,10 @@ export default function LoginPage() {
               <path d="M8 4L11 6.5V9.5L8 12L5 9.5V6.5L8 4Z" fill="#0c0a09" />
             </svg>
           </div>
-          <span className="font-semibold text-base text-foreground tracking-tight">
+          <span className="font-semibold text-base text-foreground tracking-tight transition-opacity duration-150 group-hover:opacity-75">
             sift.ai
           </span>
-        </div>
+        </Link>
 
         {/* Card */}
         <div className="border border-border bg-card">

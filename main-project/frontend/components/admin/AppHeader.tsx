@@ -1,4 +1,5 @@
 import { type Session } from "next-auth";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { UserMenu } from "./UserMenu";
 
 interface AppHeaderProps {
@@ -14,7 +15,14 @@ export function AppHeader({ session, title }: AppHeaderProps) {
           <p className="text-sm font-medium text-foreground">{title}</p>
         )}
       </div>
-      <UserMenu session={session} />
+
+      {/* ── Right controls ─────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
+        {/* divider */}
+        <span className="w-px h-4 bg-border/60" aria-hidden="true" />
+        <UserMenu session={session} />
+      </div>
     </header>
   );
 }

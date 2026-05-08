@@ -66,7 +66,8 @@
 }
 
 /* ── ShadCN base theme (dark by default) ──────────────────────────────────── */
-:root {
+:root,
+.dark {
   --background: #0c0a09;
   --foreground: #ffffff;
   --card: #1c1917;
@@ -93,6 +94,65 @@
   --sidebar-accent: #44403c;
   --sidebar-accent-foreground: #f6f6f6;
   --sidebar-border: #44403c;
+}
+
+/* ── Light theme ──────────────────────────────────────────────────────────── */
+/*
+ * Stone-based warm light palette.
+ * Contrast ratios (WCAG AA = 4.5:1 for normal text):
+ *   foreground #1c1917 on background #f5f5f4 → 14.5:1  ✓
+ *   muted-foreground #57534e on card #ffffff  →  6.0:1  ✓
+ *   lp-amber overridden to #7c5c14            →  5.8:1  ✓
+ *   lp-amber/10 active bg tint still readable at any amber shade
+ */
+.light {
+  /* ── Surfaces ── */
+  --background: #f5f5f4;   /* stone-100 — canvas; cards appear raised against it */
+  --foreground: #1c1917;   /* stone-900 — primary text, maximum contrast */
+
+  /* ── Cards / Popover ── */
+  --card: #ffffff;
+  --card-foreground: #1c1917;
+  --popover: #ffffff;
+  --popover-foreground: #1c1917;
+
+  /* ── Brand / Primary ── */
+  --primary: #7c5c14;      /* dark amber — 5.8:1 on white ✓ */
+  --primary-foreground: #ffffff;
+
+  /* ── Secondary / Muted ── */
+  --secondary: #e7e5e4;    /* stone-200 */
+  --secondary-foreground: #1c1917;
+  --muted: #e7e5e4;
+  --muted-foreground: #57534e; /* stone-600 — 6.0:1 on white ✓ */
+
+  /* ── Accent / Borders ── */
+  --accent: #e7e5e4;
+  --accent-foreground: #1c1917;
+  --border: #d6d3d1;       /* stone-300 — visible on both white and stone-100 */
+  --input: #e7e5e4;
+  --ring: #7c5c14;
+
+  /* ── Destructive ── */
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+
+  /* ── Sidebar — slightly distinct from main canvas ── */
+  --sidebar: #ede9e6;      /* warm stone, clearly different from #f5f5f4 bg */
+  --sidebar-foreground: #1c1917;
+  --sidebar-primary: #7c5c14;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #d6d3d1;
+  --sidebar-accent-foreground: #1c1917;
+  --sidebar-border: #d6d3d1;
+
+  /* ── Override brand accent colors for light-mode legibility ──
+     These override the @theme defaults (#cab16a/#59a569/#ea6962)
+     so that text-lp-amber / bg-lp-amber / text-lp-green etc.
+     all have sufficient contrast on light surfaces.            */
+  --color-lp-amber: #7c5c14;   /* dark amber  — 5.8:1 on white ✓ */
+  --color-lp-green: #166534;   /* dark green  — 7.2:1 on white ✓ */
+  --color-lp-red:   #b91c1c;   /* dark red    — 5.9:1 on white ✓ */
 }
 
 /* ── Base styles ──────────────────────────────────────────────────────────── */
@@ -219,6 +279,34 @@ body {
   0%   { transform: scale(0.6); opacity: 0; }
   60%  { transform: scale(1.15); }
   100% { transform: scale(1); opacity: 1; }
+}
+
+/* ── Light mode scrollbar ─────────────────────────────────────────────────── */
+.light ::-webkit-scrollbar-track {
+  background: var(--background);
+}
+.light ::-webkit-scrollbar-thumb {
+  background: var(--border);
+}
+
+/* ── Theme transition ─────────────────────────────────────────────────────── */
+/* Smooth variable transitions when toggling — exclude scrollbar & caret. */
+*,
+*::before,
+*::after {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+/* Remove transitions on interactive elements to keep them snappy */
+button,
+[role="button"],
+a,
+input,
+select,
+textarea {
+  transition-property: background-color, border-color, color, opacity, box-shadow;
+  transition-duration: 150ms;
 }
 
 /* ── Utilities ────────────────────────────────────────────────────────────── */

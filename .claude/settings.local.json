@@ -146,7 +146,10 @@
       "mcp__a1e0d7ce-d776-40c7-8589-4daca6bd4618__notion-create-pages",
       "mcp__a1e0d7ce-d776-40c7-8589-4daca6bd4618__notion-update-page",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(findstr /i \"next-themes\\\\|theme\")",
+      "Bash(findstr \"next-themes\")",
+      "Bash(findstr /i \"next-themes\" \"F:\\\\office\\\\cloudi-code\\\\main-project\\\\frontend\\\\package.json\")"
     ]
   }
 }

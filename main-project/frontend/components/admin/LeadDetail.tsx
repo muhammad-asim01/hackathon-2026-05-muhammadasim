@@ -186,7 +186,7 @@ function ActionBar({ draft, leadId, leadStatus }: { draft: EmailDraft | null; le
             </Button>
           </>
         )}
-        {leadStatus !== "cold" && !isEditing && (
+        {/* {leadStatus !== "cold" && !isEditing && (
           <Button
             size="sm" variant="ghost"
             className="gap-1.5 text-muted-foreground ml-auto"
@@ -195,7 +195,7 @@ function ActionBar({ draft, leadId, leadStatus }: { draft: EmailDraft | null; le
           >
             <Snowflake className="w-3.5 h-3.5" /> Mark Cold
           </Button>
-        )}
+        )} */}
       </div>
     </div>
   );

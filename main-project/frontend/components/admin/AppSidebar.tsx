@@ -9,7 +9,6 @@ import {
   Terminal,
   CheckSquare,
   BarChart2,
-  Settings,
   FlaskConical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,7 +20,7 @@ const NAV = [
   { href: "/dashboard/runs",        label: "Runs",       icon: Terminal        },
   { href: "/dashboard/approvals",   label: "Approvals",  icon: CheckSquare     },
   { href: "/dashboard/analytics",   label: "Analytics",  icon: BarChart2       },
-  { href: "/dashboard/settings",    label: "Settings",   icon: Settings        },
+  // { href: "/dashboard/settings",    label: "Settings",   icon: Settings        },
 ] as const;
 
 export function AppSidebar() {
