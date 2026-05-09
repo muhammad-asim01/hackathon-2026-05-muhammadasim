@@ -25,6 +25,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.36.0",
     "@prisma/client": "^6.6.0",
+    "@types/bcryptjs": "^2.4.6",
+    "bcryptjs": "^3.0.3",
     "compression": "^1.7.5",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

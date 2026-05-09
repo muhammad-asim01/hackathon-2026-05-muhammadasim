@@ -1,0 +1,45 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e41]:
+    - link "sift.ai" [ref=e42] [cursor=pointer]:
+      - /url: /
+      - img [ref=e44]
+      - generic [ref=e47]: sift.ai
+    - generic [ref=e48]:
+      - generic [ref=e49]:
+        - heading "Sign in to your dashboard" [level=1] [ref=e50]
+        - paragraph [ref=e51]: Access your lead pipeline, approval queue, and run history.
+      - generic [ref=e52]:
+        - generic [ref=e53]:
+          - img [ref=e54]
+          - text: Account created! Sign in below to access your dashboard.
+        - generic [ref=e56]:
+          - generic [ref=e57]:
+            - generic [ref=e58]: Email
+            - textbox "Email" [ref=e59]:
+              - /placeholder: you@agency.com
+          - generic [ref=e60]:
+            - generic [ref=e61]:
+              - generic [ref=e62]: Password
+              - generic [ref=e63]: Forgot password?
+            - textbox "Password" [ref=e64]:
+              - /placeholder: ••••••••
+          - button "Sign in" [ref=e65] [cursor=pointer]
+          - paragraph [ref=e66]:
+            - text: No account?
+            - link "Create one" [ref=e67] [cursor=pointer]:
+              - /url: /signup
+        - generic [ref=e70]: or
+        - button "Continue with Google" [ref=e73] [cursor=pointer]:
+          - img [ref=e74]
+          - text: Continue with Google
+        - button "Dev Login (QA only)" [ref=e80] [cursor=pointer]
+    - paragraph [ref=e81]:
+      - text: Only your Google account ID and email address are stored.
+      - text: See our
+      - link "privacy policy" [ref=e82] [cursor=pointer]:
+        - /url: /privacy
+      - text: .
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e35] [cursor=pointer]:
+    - img [ref=e36]
+  - alert [ref=e39]: Sign in to your dashboard

@@ -1,0 +1,159 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e40]:
+    - complementary [ref=e41]:
+      - generic [ref=e42]:
+        - img [ref=e44]
+        - generic [ref=e47]: sift.ai
+      - navigation [ref=e48]:
+        - link "Dashboard" [ref=e49] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e50]
+          - text: Dashboard
+        - link "Agent" [ref=e55] [cursor=pointer]:
+          - /url: /dashboard/agent
+          - img [ref=e56]
+          - text: Agent
+        - link "Leads" [ref=e58] [cursor=pointer]:
+          - /url: /dashboard/leads
+          - img [ref=e59]
+          - text: Leads
+        - link "Runs" [ref=e63] [cursor=pointer]:
+          - /url: /dashboard/runs
+          - img [ref=e64]
+          - text: Runs
+        - link "Approvals" [ref=e66] [cursor=pointer]:
+          - /url: /dashboard/approvals
+          - img [ref=e67]
+          - text: Approvals
+        - link "Analytics" [ref=e70] [cursor=pointer]:
+          - /url: /dashboard/analytics
+          - img [ref=e71]
+          - text: Analytics
+      - generic [ref=e72]:
+        - link "Debug" [ref=e73] [cursor=pointer]:
+          - /url: /dashboard/debug
+          - img [ref=e74]
+          - text: Debug
+        - paragraph [ref=e76]: v0.1-alpha · Phase 1C
+    - generic [ref=e77]:
+      - banner [ref=e78]:
+        - generic [ref=e79]:
+          - button "Switch to light theme" [ref=e80] [cursor=pointer]:
+            - img [ref=e81]
+            - img [ref=e87]
+          - generic [ref=e90]:
+            - generic [ref=e91]: T
+            - generic [ref=e92]: Test User
+            - button "Sign out" [ref=e94] [cursor=pointer]:
+              - img [ref=e95]
+      - main [ref=e98]:
+        - generic [ref=e99]:
+          - generic [ref=e101]:
+            - heading "Dashboard" [level=1] [ref=e102]
+            - paragraph [ref=e103]: Pipeline overview — May 9, 2026
+          - generic [ref=e104]:
+            - generic [ref=e105]:
+              - generic [ref=e106]:
+                - paragraph [ref=e107]: Total leads
+                - img [ref=e109]
+              - generic [ref=e113]:
+                - paragraph [ref=e114]: "4"
+                - paragraph [ref=e115]: all time
+            - generic [ref=e116]:
+              - generic [ref=e117]:
+                - paragraph [ref=e118]: Emails sent
+                - img [ref=e120]
+              - generic [ref=e123]:
+                - paragraph [ref=e124]: "1"
+                - paragraph [ref=e125]: all time
+            - generic [ref=e126]:
+              - generic [ref=e127]:
+                - paragraph [ref=e128]: Replies
+                - img [ref=e130]
+              - generic [ref=e132]:
+                - paragraph [ref=e133]: "0"
+                - paragraph [ref=e134]: from sent emails
+            - generic [ref=e135]:
+              - generic [ref=e136]:
+                - paragraph [ref=e137]: Reply rate
+                - img [ref=e139]
+              - generic [ref=e142]:
+                - paragraph [ref=e143]: 0%
+                - paragraph [ref=e144]: of sent emails replied
+          - generic [ref=e145]:
+            - generic [ref=e146]:
+              - generic [ref=e147]:
+                - paragraph [ref=e148]: Recent Runs
+                - link "View all" [ref=e149] [cursor=pointer]:
+                  - /url: /dashboard/runs
+                  - text: View all
+                  - img [ref=e150]
+              - generic [ref=e152]:
+                - link "Clinic · Uk 2 found · 0 emailed · 37s" [ref=e153] [cursor=pointer]:
+                  - /url: /dashboard/runs/cmovhv25j0007xt7so20jwwma
+                  - generic [ref=e155]:
+                    - paragraph [ref=e156]:
+                      - text: Clinic
+                      - generic [ref=e157]: · Uk
+                    - paragraph [ref=e158]: 2 found · 0 emailed · 37s
+                  - img [ref=e159]
+                - link "Hospital · Uk 0 found · 0 emailed · 15s" [ref=e161] [cursor=pointer]:
+                  - /url: /dashboard/runs/cmovhugnr0000xt7sg75z8zyy
+                  - generic [ref=e163]:
+                    - paragraph [ref=e164]:
+                      - text: Hospital
+                      - generic [ref=e165]: · Uk
+                    - paragraph [ref=e166]: 0 found · 0 emailed · 15s
+                  - img [ref=e167]
+                - link "Hospital · Uk 2 found · 0 emailed · 39s" [ref=e169] [cursor=pointer]:
+                  - /url: /dashboard/runs/cmovgbap90000xto0hlpeykti
+                  - generic [ref=e171]:
+                    - paragraph [ref=e172]:
+                      - text: Hospital
+                      - generic [ref=e173]: · Uk
+                    - paragraph [ref=e174]: 2 found · 0 emailed · 39s
+                  - img [ref=e175]
+            - generic [ref=e177]:
+              - generic [ref=e178]:
+                - paragraph [ref=e179]: Recent Leads
+                - link "View all" [ref=e180] [cursor=pointer]:
+                  - /url: /dashboard/leads
+                  - text: View all
+                  - img [ref=e181]
+              - generic [ref=e183]:
+                - link "Hegy Walk-in Clinic medical · Greater London 53" [ref=e184] [cursor=pointer]:
+                  - /url: /dashboard/leads/cmovhv3e2000gxt7s6tgl6ghh
+                  - generic [ref=e185]:
+                    - paragraph [ref=e186]: Hegy Walk-in Clinic
+                    - paragraph [ref=e187]: medical · Greater London
+                  - generic [ref=e188]:
+                    - generic [ref=e189]: "53"
+                    - img [ref=e190]
+                - link "Massage in Fulham medical · Greater London 60" [ref=e192] [cursor=pointer]:
+                  - /url: /dashboard/leads/cmovhv3e2000kxt7skiqq72py
+                  - generic [ref=e193]:
+                    - paragraph [ref=e194]: Massage in Fulham
+                    - paragraph [ref=e195]: medical · Greater London
+                  - generic [ref=e196]:
+                    - generic [ref=e197]: "60"
+                    - img [ref=e198]
+                - link "Mary Hewetson Cottage Hospital medical · Keswick 60" [ref=e200] [cursor=pointer]:
+                  - /url: /dashboard/leads/cmovgbd1x0009xto0f6oj1h3r
+                  - generic [ref=e201]:
+                    - paragraph [ref=e202]: Mary Hewetson Cottage Hospital
+                    - paragraph [ref=e203]: medical · Keswick
+                  - generic [ref=e204]:
+                    - generic [ref=e205]: "60"
+                    - img [ref=e206]
+                - link "Cockermouth Community Hospital medical · Cockermouth 79" [ref=e208] [cursor=pointer]:
+                  - /url: /dashboard/leads/cmovgbd1y000dxto0myg62889
+                  - generic [ref=e209]:
+                    - paragraph [ref=e210]: Cockermouth Community Hospital
+                    - paragraph [ref=e211]: medical · Cockermouth
+                  - generic [ref=e212]:
+                    - generic [ref=e213]: "79"
+                    - img [ref=e214]
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e35] [cursor=pointer]:
+    - img [ref=e36]
+  - alert [ref=e39]: Dashboard | sift.ai | sift.ai

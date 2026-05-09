@@ -4,6 +4,12 @@ import { AppSidebar } from "@/components/admin/AppSidebar";
 import { AppHeader } from "@/components/admin/AppHeader";
 import { MobileNav } from "@/components/admin/MobileNav";
 
+// Force dynamic rendering on every request — ensures auth() always reads the
+// current session cookie instead of a cached result. Combined with the
+// Cache-Control: no-store header in next.config.ts, this prevents stale
+// dashboard pages from being served after sign-out.
+export const dynamic = "force-dynamic";
+
 export default async function AdminLayout({
   children,
 }: {
@@ -11,7 +17,7 @@ export default async function AdminLayout({
 }) {
   const session = await auth();
 
-  if (!session) {
+  if (!session?.user) {
     redirect("/login");
   }
 

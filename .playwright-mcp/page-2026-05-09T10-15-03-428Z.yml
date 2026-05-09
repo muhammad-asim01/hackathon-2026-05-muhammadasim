@@ -1,0 +1,88 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - img [ref=e6]
+        - generic [ref=e9]: sift.ai
+      - navigation [ref=e10]:
+        - link "Dashboard" [ref=e11] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e12]
+          - text: Dashboard
+        - link "Agent" [ref=e17] [cursor=pointer]:
+          - /url: /dashboard/agent
+          - img [ref=e18]
+          - text: Agent
+        - link "Leads" [ref=e20] [cursor=pointer]:
+          - /url: /dashboard/leads
+          - img [ref=e21]
+          - text: Leads
+        - link "Runs" [ref=e25] [cursor=pointer]:
+          - /url: /dashboard/runs
+          - img [ref=e26]
+          - text: Runs
+        - link "Approvals" [ref=e28] [cursor=pointer]:
+          - /url: /dashboard/approvals
+          - img [ref=e29]
+          - text: Approvals
+        - link "Analytics" [ref=e32] [cursor=pointer]:
+          - /url: /dashboard/analytics
+          - img [ref=e33]
+          - text: Analytics
+      - generic [ref=e34]:
+        - link "Debug" [ref=e35] [cursor=pointer]:
+          - /url: /dashboard/debug
+          - img [ref=e36]
+          - text: Debug
+        - paragraph [ref=e38]: v0.1-alpha · Phase 1C
+    - generic [ref=e39]:
+      - banner [ref=e40]:
+        - generic [ref=e44]:
+          - generic [ref=e45]: Q
+          - generic [ref=e46]: QA User
+          - button "Sign out" [ref=e48] [cursor=pointer]:
+            - img [ref=e49]
+      - main [ref=e52]:
+        - generic [ref=e53]:
+          - generic [ref=e55]:
+            - heading "Dashboard" [level=1] [ref=e56]
+            - paragraph [ref=e57]: Pipeline overview — May 9, 2026
+          - generic [ref=e58]:
+            - generic [ref=e59]:
+              - generic [ref=e60]:
+                - paragraph [ref=e61]: Total leads
+                - img [ref=e63]
+              - paragraph [ref=e69]: all time
+            - generic [ref=e70]:
+              - generic [ref=e71]:
+                - paragraph [ref=e72]: Emails sent
+                - img [ref=e74]
+              - paragraph [ref=e79]: all time
+            - generic [ref=e80]:
+              - generic [ref=e81]:
+                - paragraph [ref=e82]: Replies
+                - img [ref=e84]
+              - paragraph [ref=e88]: from sent emails
+            - generic [ref=e89]:
+              - generic [ref=e90]:
+                - paragraph [ref=e91]: Reply rate
+                - img [ref=e93]
+              - paragraph [ref=e98]: of sent emails replied
+          - generic [ref=e99]:
+            - generic [ref=e100]:
+              - generic [ref=e101]:
+                - paragraph [ref=e102]: Recent Runs
+                - link "View all" [ref=e103] [cursor=pointer]:
+                  - /url: /dashboard/runs
+                  - text: View all
+                  - img [ref=e104]
+              - paragraph [ref=e107]: No runs yet.
+            - generic [ref=e108]:
+              - generic [ref=e109]:
+                - paragraph [ref=e110]: Recent Leads
+                - link "View all" [ref=e111] [cursor=pointer]:
+                  - /url: /dashboard/leads
+                  - text: View all
+                  - img [ref=e112]
+              - paragraph [ref=e115]: No leads yet.
+  - region "Notifications alt+T"

@@ -1,0 +1,95 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e52]:
+    - complementary [ref=e53]:
+      - generic [ref=e54]:
+        - img [ref=e56]
+        - generic [ref=e59]: sift.ai
+      - navigation [ref=e60]:
+        - link "Dashboard" [ref=e61] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e62]
+          - text: Dashboard
+        - link "Agent" [ref=e67] [cursor=pointer]:
+          - /url: /dashboard/agent
+          - img [ref=e68]
+          - text: Agent
+        - link "Leads" [ref=e70] [cursor=pointer]:
+          - /url: /dashboard/leads
+          - img [ref=e71]
+          - text: Leads
+        - link "Runs" [ref=e75] [cursor=pointer]:
+          - /url: /dashboard/runs
+          - img [ref=e76]
+          - text: Runs
+        - link "Approvals" [ref=e78] [cursor=pointer]:
+          - /url: /dashboard/approvals
+          - img [ref=e79]
+          - text: Approvals
+        - link "Analytics" [ref=e82] [cursor=pointer]:
+          - /url: /dashboard/analytics
+          - img [ref=e83]
+          - text: Analytics
+      - generic [ref=e84]:
+        - link "Debug" [ref=e85] [cursor=pointer]:
+          - /url: /dashboard/debug
+          - img [ref=e86]
+          - text: Debug
+        - paragraph [ref=e88]: v0.1-alpha · Phase 1C
+    - generic [ref=e89]:
+      - banner [ref=e90]:
+        - generic [ref=e91]:
+          - button "Switch to light theme" [ref=e92] [cursor=pointer]:
+            - img [ref=e93]
+            - img [ref=e99]
+          - generic [ref=e102]:
+            - generic [ref=e103]: Q
+            - generic [ref=e104]: QA User
+            - button "Sign out" [ref=e106] [cursor=pointer]:
+              - img [ref=e107]
+      - main [ref=e110]:
+        - generic [ref=e111]:
+          - generic [ref=e113]:
+            - heading "Dashboard" [level=1] [ref=e114]
+            - paragraph [ref=e115]: Pipeline overview — May 9, 2026
+          - generic [ref=e116]:
+            - generic [ref=e117]:
+              - generic [ref=e118]:
+                - paragraph [ref=e119]: Total leads
+                - img [ref=e121]
+              - paragraph [ref=e127]: all time
+            - generic [ref=e128]:
+              - generic [ref=e129]:
+                - paragraph [ref=e130]: Emails sent
+                - img [ref=e132]
+              - paragraph [ref=e137]: all time
+            - generic [ref=e138]:
+              - generic [ref=e139]:
+                - paragraph [ref=e140]: Replies
+                - img [ref=e142]
+              - paragraph [ref=e146]: from sent emails
+            - generic [ref=e147]:
+              - generic [ref=e148]:
+                - paragraph [ref=e149]: Reply rate
+                - img [ref=e151]
+              - paragraph [ref=e156]: of sent emails replied
+          - generic [ref=e157]:
+            - generic [ref=e158]:
+              - generic [ref=e159]:
+                - paragraph [ref=e160]: Recent Runs
+                - link "View all" [ref=e161] [cursor=pointer]:
+                  - /url: /dashboard/runs
+                  - text: View all
+                  - img [ref=e162]
+              - paragraph [ref=e165]: No runs yet.
+            - generic [ref=e166]:
+              - generic [ref=e167]:
+                - paragraph [ref=e168]: Recent Leads
+                - link "View all" [ref=e169] [cursor=pointer]:
+                  - /url: /dashboard/leads
+                  - text: View all
+                  - img [ref=e170]
+              - paragraph [ref=e173]: No leads yet.
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e47] [cursor=pointer]:
+    - img [ref=e48]
+  - alert [ref=e51]: Dashboard | sift.ai | sift.ai

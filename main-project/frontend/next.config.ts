@@ -38,7 +38,7 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://us-assets.i.posthog.com",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https: blob:",
       "font-src 'self' data:",
@@ -56,9 +56,23 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // Apply to every route
+        // Apply security headers to every route
         source: "/(.*)",
         headers: securityHeaders,
+      },
+      {
+        // Dashboard routes must never be served from browser cache.
+        // Without this, pressing "back" after sign-out shows a stale cached
+        // page, making the dashboard appear accessible when it isn't.
+        source: "/dashboard/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-store, no-cache, must-revalidate, proxy-revalidate",
+          },
+          { key: "Pragma", value: "no-cache" },
+          { key: "Expires", value: "0" },
+        ],
       },
     ];
   },

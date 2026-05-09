@@ -154,7 +154,13 @@
       "Bash(git -C \"F:/office/cloudi-code\" show 406521f --stat)",
       "Bash(npx eslint *)",
       "Bash(Get-Content \"F:\\\\office\\\\cloudi-code\\\\main-project\\\\server\\\\backend\\\\.env\")",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(Get-ChildItem \"F:\\\\office\\\\cloudi-code\\\\main-project\\\\server\\\\backend\\\\prisma\\\\migrations\")",
+      "Bash(Select-Object -Last 5 -ExpandProperty Name)",
+      "Bash(curl -s http://localhost:3000 -o /dev/null -w \"%{http_code}\")",
+      "Bash(curl -s http://localhost:3001/api/health -o /dev/null -w \"%{http_code}\")",
+      "Bash(echo \"Backend starting with PID $!\")",
+      "Bash(curl -sI \"http://localhost:3000/dashboard\")"
     ]
   }
 }

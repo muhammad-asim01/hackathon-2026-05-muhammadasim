@@ -49,6 +49,11 @@ enum EmailStatus {
   FAILED
 }
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
 // ─── Lead ─────────────────────────────────────────────────────────────────────
 
 model Lead {
@@ -187,6 +192,25 @@ model Niche {
   slug   String  @unique
   label  String
   active Boolean @default(true)
+}
+
+// ─── User ─────────────────────────────────────────────────────────────────────
+
+// Accounts created via email + password registration.
+// Google OAuth users are identified by email only (no passwordHash stored).
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String?          // null for Google / OAuth users
+  name         String?
+  role         UserRole @default(USER)
+  provider     String   @default("email")  // "email" | "google"
+  googleId     String?  @unique            // Google providerAccountId
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([email])
+  @@index([googleId])
 }
 
 // ─── MapsCache ────────────────────────────────────────────────────────────────

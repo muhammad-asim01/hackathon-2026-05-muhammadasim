@@ -26,7 +26,7 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "@/config/env";
-import { UnauthorizedError } from "@/domain/errors";
+import { UnauthorizedError, ForbiddenError } from "@/domain/errors";
 
 // ─── Request augmentation ─────────────────────────────────────────────────────
 
@@ -34,6 +34,7 @@ export interface AuthenticatedUser {
   readonly sub: string;
   readonly email: string;
   readonly name?: string;
+  readonly role?: "USER" | "ADMIN";
 }
 
 declare global {
@@ -51,6 +52,7 @@ interface JwtPayload {
   sub?: string;
   email?: string;
   name?: string;
+  role?: "USER" | "ADMIN";
   iat?: number;
   exp?: number;
 }
@@ -74,6 +76,7 @@ function decodeToken(token: string): AuthenticatedUser {
     sub: raw.sub,
     email: raw.email,
     ...(raw.name !== undefined && { name: raw.name }),
+    ...(raw.role !== undefined && { role: raw.role }),
   };
 }
 
@@ -102,7 +105,7 @@ export function requireAuth(
 
   // Dev QA bypass — never reaches production (NODE_ENV guard via validated env)
   if (env.NODE_ENV === "development" && token === "dev-qa-bypass") {
-    req.user = { sub: "dev", email: "dev@sift.ai.dev", name: "Dev Admin" };
+    req.user = { sub: "dev", email: "dev@sift.ai.dev", name: "Dev Admin", role: "ADMIN" };
     next();
     return;
   }
@@ -143,5 +146,25 @@ export function optionalAuth(
     // Silently ignore bad tokens on optional-auth routes
   }
 
+  next();
+}
+
+/**
+ * Require admin role — must come after requireAuth in the middleware chain.
+ * Returns 403 ForbiddenError if the authenticated user is not an ADMIN.
+ */
+export function requireAdmin(
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): void {
+  if (!req.user) {
+    next(new UnauthorizedError("Authentication required"));
+    return;
+  }
+  if (req.user.role !== "ADMIN") {
+    next(new ForbiddenError("Admin access required"));
+    return;
+  }
   next();
 }

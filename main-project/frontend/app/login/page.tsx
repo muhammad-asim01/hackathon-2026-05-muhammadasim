@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { googleSignIn, devSignIn } from "@/app/actions/auth";
+import { EmailLoginForm } from "./EmailLoginForm";
 
 export const metadata: Metadata = {
   title: "Log in",
@@ -30,7 +31,14 @@ function GoogleIcon() {
   );
 }
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ registered?: string }>;
+}) {
+  const { registered } = await searchParams;
+  const justRegistered = registered === "1";
+
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-background relative overflow-hidden">
 
@@ -95,7 +103,29 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <div className="px-8 py-6 space-y-3">
+          <div className="px-8 py-6 space-y-5">
+
+            {/* Post-registration success banner */}
+            {justRegistered && (
+              <div className="flex items-start gap-2.5 px-3 py-2.5 bg-lp-green/10 border border-lp-green/30 text-xs text-lp-green leading-snug">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden className="shrink-0 mt-0.5">
+                  <path d="M2.5 7L5.5 10L11.5 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Account created! Sign in below to access your dashboard.
+              </div>
+            )}
+
+            {/* Email + password */}
+            <EmailLoginForm />
+
+            {/* Divider */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-border/60" />
+              <span className="text-[11px] text-muted-foreground/40 uppercase tracking-widest">or</span>
+              <div className="flex-1 h-px bg-border/60" />
+            </div>
+
+            {/* Google */}
             <form action={googleSignIn}>
               <button
                 type="submit"
@@ -106,6 +136,7 @@ export default function LoginPage() {
               </button>
             </form>
 
+            {/* Dev bypass */}
             {process.env.NODE_ENV === "development" && (
               <form action={devSignIn}>
                 <button

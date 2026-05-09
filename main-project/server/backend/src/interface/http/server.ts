@@ -29,6 +29,7 @@ import { settingsRouter } from "@/interface/http/routes/settings.router";
 import { analyticsRouter } from "@/interface/http/routes/analytics.router";
 import { debugRouter } from "@/interface/http/routes/debug.router";
 import { contactRouter } from "@/interface/http/routes/contact.router";
+import { authRouter }    from "@/interface/http/routes/auth.router";
 
 // ─── Rate limiters ────────────────────────────────────────────────────────────
 
@@ -143,6 +144,7 @@ export function createApp() {
 
   // ── Routes ────────────────────────────────────────────────────────────────
   app.use("/api/health", healthRouter);
+  app.use("/api/auth", authRouter);
   app.use("/api/contact", publicLimiter, contactRouter);
   app.use("/api/public", publicLimiter, publicRouter);
   app.use("/api/leads", leadsRouter);

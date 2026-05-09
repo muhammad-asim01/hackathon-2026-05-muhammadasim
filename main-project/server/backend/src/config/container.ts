@@ -17,6 +17,7 @@ import { LeadRepository }    from "@/infrastructure/persistence/repositories/Lea
 import { RunRepository }     from "@/infrastructure/persistence/repositories/RunRepository";
 import { EmailRepository }   from "@/infrastructure/persistence/repositories/EmailRepository";
 import { AuditRepository }   from "@/infrastructure/persistence/repositories/AuditRepository";
+import { UserRepository }    from "@/infrastructure/persistence/repositories/UserRepository";
 
 import { OSMMapsService }          from "@/infrastructure/external/osm/OSMMapsService";
 import { PythonCrawlerAdapter }    from "@/infrastructure/external/scraper/PythonCrawlerAdapter";
@@ -38,9 +39,13 @@ import { GenerateOutreachEmail }  from "@/application/use-cases/writer/GenerateO
 import { LogLead }                from "@/application/use-cases/tracker/LogLead";
 import { RunPipeline }            from "@/application/use-cases/pipeline/RunPipeline";
 import { ApproveAndSendEmail }    from "@/application/use-cases/email/ApproveAndSendEmail";
+import { RegisterUser }           from "@/application/use-cases/auth/RegisterUser";
+import { LoginUser }              from "@/application/use-cases/auth/LoginUser";
+import { SyncGoogleUser }         from "@/application/use-cases/auth/SyncGoogleUser";
 
 // ── Router registrations ──────────────────────────────────────────────────────
 import { registerApproveAndSend } from "@/interface/http/routes/emails.router";
+import { registerAuthUseCases }   from "@/interface/http/routes/auth.router";
 
 // ─── Prisma singleton ─────────────────────────────────────────────────────────
 
@@ -83,6 +88,7 @@ const leadRepo  = new LeadRepository(prisma);
 const runRepo   = new RunRepository(prisma);
 const emailRepo = new EmailRepository(prisma);
 const auditRepo = new AuditRepository(prisma);
+const userRepo  = new UserRepository(prisma);
 
 // ─── Maps — OpenStreetMap (Nominatim + Overpass) ───────────────────────────────
 // No API key required. Rate-limit safe for ≤ 15 req/day (internal cap).
@@ -191,6 +197,13 @@ const approveAndSendEmail = new ApproveAndSendEmail(emailRepo, leadRepo, emailSe
 // Register with the emails router (avoids circular import)
 registerApproveAndSend(approveAndSendEmail);
 
+// ─── Auth use-cases ───────────────────────────────────────────────────────────
+
+const registerUser    = new RegisterUser(userRepo);
+const loginUser       = new LoginUser(userRepo);
+const syncGoogleUser  = new SyncGoogleUser(userRepo);
+registerAuthUseCases(registerUser, loginUser, syncGoogleUser);
+
 // ─── Container ────────────────────────────────────────────────────────────────
 
 // Wire the contact router's email sender so it can send contact notifications
@@ -204,6 +217,7 @@ export const container = {
   runRepo,
   emailRepo,
   auditRepo,
+  userRepo,
   // Infrastructure (exposed for debug router)
   pageCrawler,
   pageSpeedService,

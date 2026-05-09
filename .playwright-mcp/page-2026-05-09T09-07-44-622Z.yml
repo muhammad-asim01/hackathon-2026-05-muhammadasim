@@ -1,0 +1,21 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - link "sift.ai" [ref=e4] [cursor=pointer]:
+      - /url: /
+      - img [ref=e6]
+      - generic [ref=e9]: sift.ai
+    - generic [ref=e10]:
+      - generic [ref=e11]:
+        - heading "Sign in to your dashboard" [level=1] [ref=e12]
+        - paragraph [ref=e13]: Access your lead pipeline, approval queue, and run history.
+      - button "Continue with Google" [ref=e16] [cursor=pointer]:
+        - img [ref=e17]
+        - text: Continue with Google
+    - paragraph [ref=e22]:
+      - text: Only your Google account ID and email address are stored.
+      - text: See our
+      - link "privacy policy" [ref=e23] [cursor=pointer]:
+        - /url: /privacy
+      - text: .
+  - region "Notifications alt+T"
+  - alert [ref=e24]

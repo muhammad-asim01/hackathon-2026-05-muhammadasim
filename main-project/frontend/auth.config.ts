@@ -14,6 +14,8 @@ export const authConfig: NextAuthConfig = {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
       const isDashboard = nextUrl.pathname.startsWith("/dashboard");
+      const isAuthPage =
+        nextUrl.pathname === "/login" || nextUrl.pathname === "/signup";
 
       if (isDashboard) {
         if (isLoggedIn) return true;
@@ -23,8 +25,8 @@ export const authConfig: NextAuthConfig = {
         return Response.redirect(loginUrl);
       }
 
-      // Already logged in on /login → redirect to dashboard
-      if (isLoggedIn && nextUrl.pathname === "/login") {
+      // Already logged in on /login or /signup → redirect to dashboard
+      if (isLoggedIn && isAuthPage) {
         return Response.redirect(new URL("/dashboard", nextUrl.origin));
       }
 
