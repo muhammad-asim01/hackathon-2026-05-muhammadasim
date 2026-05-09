@@ -20,9 +20,19 @@ async function main() {
   await prisma.settings.deleteMany();
 
   // ─── Settings singleton ────────────────────────────────────────────────────
-  await prisma.settings.create({
-    data: {
+  await prisma.settings.upsert({
+    where: { id: "singleton" },
+    create: {
       id: "singleton",
+      dailyQuota: 3,
+      scoreThreshold: 75,
+      emailWordLimit: 180,
+      targetNiches: ["Auto Repair", "Pet Grooming", "HVAC", "Landscaping"],
+      targetCities: ["Chicago, IL", "Austin, TX"],
+      fromName: "Muhammad Asim",
+      replyToEmail: "muhammadasim.code@gmail.com",
+    },
+    update: {
       dailyQuota: 3,
       scoreThreshold: 75,
       emailWordLimit: 180,
@@ -35,6 +45,7 @@ async function main() {
 
   // ─── Pipeline Runs ─────────────────────────────────────────────────────────
   await prisma.pipelineRun.createMany({
+    skipDuplicates: true,
     data: [
       {
         id: "run_001",
@@ -88,6 +99,7 @@ async function main() {
   // Status mapping: "new"+draft=PENDING_APPROVAL, "new"+no draft=AUDITED,
   // "contacted"=EMAIL_SENT, "approved"=APPROVED, "rejected"=REJECTED, "cold"=COLD
   await prisma.lead.createMany({
+    skipDuplicates: true,
     data: [
       {
         id: "lead_001",
@@ -494,6 +506,7 @@ async function main() {
 
   // ─── Audits (one per lead) ─────────────────────────────────────────────────
   await prisma.audit.createMany({
+    skipDuplicates: true,
     data: [
       { leadId: "lead_001", pageSpeedScore: 18, mobileScore: 31, hasSSL: false, hasMobileMeta: true,  hasMetaTags: false, hasCTA: false },
       { leadId: "lead_002", pageSpeedScore: 34, mobileScore: 29, hasSSL: true,  hasMobileMeta: false, hasMetaTags: true,  hasCTA: true  },
@@ -520,6 +533,7 @@ async function main() {
 
   // ─── Emails ────────────────────────────────────────────────────────────────
   await prisma.email.createMany({
+    skipDuplicates: true,
     data: [
       {
         id: "email_001",
@@ -763,6 +777,7 @@ I help service businesses identify and fix exactly these kinds of silent convers
 
   // ─── Run Events ────────────────────────────────────────────────────────────
   await prisma.runEvent.createMany({
+    skipDuplicates: true,
     data: [
       // run_001 — Auto Repair Chicago
       { id: "evt_001_01", runId: "run_001", agentName: "Scout",    level: EventLevel.INFO,    message: 'Querying Google Maps for "Auto Repair" in Chicago, IL',                    createdAt: new Date("2026-05-04T07:00:05Z") },
