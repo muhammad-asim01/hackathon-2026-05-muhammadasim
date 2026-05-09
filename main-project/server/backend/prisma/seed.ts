@@ -11,13 +11,9 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Seeding database...");
 
-  // Clear existing data in reverse FK order
-  await prisma.runEvent.deleteMany();
-  await prisma.email.deleteMany();
-  await prisma.audit.deleteMany();
-  await prisma.lead.deleteMany();
-  await prisma.pipelineRun.deleteMany();
-  await prisma.settings.deleteMany();
+  // Wipe all seeded tables atomically — TRUNCATE CASCADE handles FK order
+  // automatically, far more reliable than manual delete sequencing.
+  await prisma.$executeRaw`TRUNCATE TABLE "RunEvent", "Email", "Audit", "Lead", "PipelineRun", "Settings", "Niche", "MapsCache" RESTART IDENTITY CASCADE`;
 
   // ─── Settings singleton ────────────────────────────────────────────────────
   await prisma.settings.upsert({
