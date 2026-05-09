@@ -28,6 +28,7 @@ import { publicRouter } from "@/interface/http/routes/public.router";
 import { settingsRouter } from "@/interface/http/routes/settings.router";
 import { analyticsRouter } from "@/interface/http/routes/analytics.router";
 import { debugRouter } from "@/interface/http/routes/debug.router";
+import { contactRouter } from "@/interface/http/routes/contact.router";
 
 // ─── Rate limiters ────────────────────────────────────────────────────────────
 
@@ -142,6 +143,7 @@ export function createApp() {
 
   // ── Routes ────────────────────────────────────────────────────────────────
   app.use("/api/health", healthRouter);
+  app.use("/api/contact", publicLimiter, contactRouter);
   app.use("/api/public", publicLimiter, publicRouter);
   app.use("/api/leads", leadsRouter);
   app.use("/api/pipeline/run", pipelineLimiter);  // tighter cap on expensive trigger

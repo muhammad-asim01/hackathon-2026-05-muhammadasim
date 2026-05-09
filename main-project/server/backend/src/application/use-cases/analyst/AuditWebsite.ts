@@ -102,7 +102,6 @@ export class AuditWebsite {
 
       if (crawlSettled.status === "fulfilled") {
         crawlResult = crawlSettled.value;
-        console.log("crawlResult.emails", crawlResult.emails)
         extractedEmails = crawlResult.emails;
       } else {
         log.warn({ err: crawlSettled.reason }, "Page crawl failed — skipping crawl signals");

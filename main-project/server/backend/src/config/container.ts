@@ -4,7 +4,8 @@
  * Maps:       OSMMapsService (Nominatim + Overpass — no Google dependency)
  * PageSpeed:  PythonPageSpeedAdapter → Python FastAPI sidecar on :8001
  * Crawler:    PythonCrawlerAdapter   → Python FastAPI sidecar on :8001
- * LLM:        AnthropicAdapter (Claude) or MockLLMAdapter when key is absent
+ * LLM:        GrokAdapter (primary) → AnthropicAdapter (fallback) via FallbackLLMAdapter
+ *             Falls back to MockLLMAdapter when neither key is configured.
  * Email:      GmailService or MockEmailSender when OAuth credentials are absent
  */
 import { PrismaClient } from "@prisma/client";
@@ -21,8 +22,11 @@ import { OSMMapsService }          from "@/infrastructure/external/osm/OSMMapsSe
 import { PythonCrawlerAdapter }    from "@/infrastructure/external/scraper/PythonCrawlerAdapter";
 import { PythonPageSpeedAdapter }  from "@/infrastructure/external/scraper/PythonPageSpeedAdapter";
 
-import { AnthropicAdapter }  from "@/infrastructure/external/llm/AnthropicAdapter";
-import { MockLLMAdapter }    from "@/infrastructure/external/llm/MockLLMAdapter";
+import { GrokAdapter }         from "@/infrastructure/external/llm/GrokAdapter";
+import { AnthropicAdapter }   from "@/infrastructure/external/llm/AnthropicAdapter";
+import { FallbackLLMAdapter } from "@/infrastructure/external/llm/FallbackLLMAdapter";
+import { MockLLMAdapter }     from "@/infrastructure/external/llm/MockLLMAdapter";
+import type { ILLMProvider }  from "@/application/ports/ILLMProvider";
 import { GmailService }      from "@/infrastructure/external/email/GmailService";
 import { MockEmailSender }   from "@/infrastructure/external/email/MockEmailSender";
 
@@ -100,21 +104,43 @@ logger.info(
 );
 
 // ─── LLM provider ─────────────────────────────────────────────────────────────
-// Use mock when MOCK_LLM=true or the API key is the placeholder default.
+// Selection priority:
+//   1. MOCK_LLM=true                    → MockLLMAdapter (forced mock)
+//   2. GROK_API_KEY + ANTHROPIC_API_KEY  → FallbackLLMAdapter(Grok → Anthropic)
+//   3. GROK_API_KEY only                 → GrokAdapter alone
+//   4. ANTHROPIC_API_KEY only            → AnthropicAdapter alone
+//   5. Neither key present              → MockLLMAdapter (auto-mock in dev)
 
-const useMockLLM =
-  env.MOCK_LLM ||
-  !env.ANTHROPIC_API_KEY ||
-  env.ANTHROPIC_API_KEY === "sk-ant-placeholder";
+const grokReady =
+  Boolean(env.GROK_API_KEY) && env.GROK_API_KEY.trim() !== "";
 
-const llmProvider = useMockLLM
-  ? new MockLLMAdapter()
-  : new AnthropicAdapter(env.ANTHROPIC_API_KEY);
+const anthropicReady =
+  Boolean(env.ANTHROPIC_API_KEY) &&
+  env.ANTHROPIC_API_KEY !== "sk-ant-placeholder";
 
-if (useMockLLM) {
+const forceMock = env.MOCK_LLM || (!grokReady && !anthropicReady);
+
+let llmProvider: ILLMProvider;
+
+if (forceMock) {
+  llmProvider = new MockLLMAdapter();
   logger.warn(
-    "LLM: using MockLLMAdapter (set MOCK_LLM=false and a real ANTHROPIC_API_KEY to use Claude)"
+    "LLM: using MockLLMAdapter — set GROK_API_KEY or ANTHROPIC_API_KEY to use real AI"
   );
+} else if (grokReady && anthropicReady) {
+  llmProvider = new FallbackLLMAdapter(
+    new GrokAdapter(env.GROK_API_KEY),
+    new AnthropicAdapter(env.ANTHROPIC_API_KEY),
+    "grok",
+    "anthropic"
+  );
+  logger.info("LLM: GrokAdapter (primary) → AnthropicAdapter (fallback)");
+} else if (grokReady) {
+  llmProvider = new GrokAdapter(env.GROK_API_KEY);
+  logger.info("LLM: GrokAdapter only (no Anthropic key configured)");
+} else {
+  llmProvider = new AnthropicAdapter(env.ANTHROPIC_API_KEY);
+  logger.info("LLM: AnthropicAdapter only (no Grok key configured)");
 }
 
 // ─── Email sender ─────────────────────────────────────────────────────────────
@@ -160,12 +186,16 @@ const runPipeline = new RunPipeline(
   logLead
 );
 
-const approveAndSendEmail = new ApproveAndSendEmail(emailRepo, leadRepo, emailSender);
+const approveAndSendEmail = new ApproveAndSendEmail(emailRepo, leadRepo, emailSender, env.FRONTEND_URL);
 
 // Register with the emails router (avoids circular import)
 registerApproveAndSend(approveAndSendEmail);
 
 // ─── Container ────────────────────────────────────────────────────────────────
+
+// Wire the contact router's email sender so it can send contact notifications
+import { registerContactEmailSender } from "@/interface/http/routes/contact.router";
+registerContactEmailSender(emailSender);
 
 export const container = {
   prisma,

@@ -92,13 +92,31 @@ function ActionBar({ draft, leadId, leadStatus }: { draft: EmailDraft | null; le
     );
   }
 
-  if (draft.status === "approved" || draft.status === "sent") {
+  if (draft.status === "sent") {
     return (
       <div className="bg-lp-green/5 border border-lp-green/20 p-5 flex items-center gap-3">
         <CheckCircle2 className="w-4 h-4 text-lp-green shrink-0" />
         <p className="text-sm text-lp-green">
           {draft.recipientEmail ? `Email sent to ${draft.recipientEmail}` : "Email sent successfully."}
         </p>
+      </div>
+    );
+  }
+
+  if (draft.status === "approved") {
+    return (
+      <div className="bg-lp-amber/5 border border-lp-amber/20 p-5 flex items-center gap-3">
+        <CheckCircle2 className="w-4 h-4 text-lp-amber shrink-0" />
+        <p className="text-sm text-lp-amber">Approved — pending send.</p>
+      </div>
+    );
+  }
+
+  if (draft.status === "failed") {
+    return (
+      <div className="bg-lp-red/5 border border-lp-red/20 p-5 flex items-center gap-3">
+        <XCircle className="w-4 h-4 text-lp-red shrink-0" />
+        <p className="text-sm text-lp-red">Send failed — check Gmail configuration.</p>
       </div>
     );
   }
@@ -121,7 +139,7 @@ function ActionBar({ draft, leadId, leadStatus }: { draft: EmailDraft | null; le
             {draft.wordCount} words · {draft.subject}
           </p>
         </div>
-        <Badge variant={draft.status === "pending" ? "warning" : draft.status === "sent" ? "success" : "error"} className="capitalize text-[10px]">
+        <Badge variant={draft.status === "pending" ? "warning" : draft.status === "sent" || draft.status === "approved" ? "success" : "error"} className="capitalize text-[10px]">
           {draft.status}
         </Badge>
       </div>

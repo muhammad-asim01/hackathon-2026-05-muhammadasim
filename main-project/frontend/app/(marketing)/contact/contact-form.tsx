@@ -36,11 +36,20 @@ export function ContactForm() {
     setErrorMsg("");
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 900));
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
+      const res = await fetch(`${apiUrl}/api/contact`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      if (!res.ok) throw new Error("Server error");
       setStatus("success");
     } catch {
       setStatus("error");
-      setErrorMsg("Something went wrong. Please try again.");
+      setErrorMsg(
+        "Message couldn't be sent right now. Email us directly at hello@sift.ai"
+      );
     }
   }
 

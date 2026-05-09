@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CheckCircle2, XCircle, Pencil, ChevronDown, ChevronUp, Send, Clock } from "lucide-react";
 import { useApprovals, useApproveEmail, useRejectEmail, useEditEmail } from "@/hooks/useApprovals";
 import { type EmailDraft, type DraftStatus } from "@/lib/types";
@@ -11,10 +11,11 @@ import { cn } from "@/lib/utils";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUS_VARIANTS: Record<DraftStatus, "warning" | "success" | "error" | "muted"> = {
-  pending: "warning",
-  approved: "success",
+  pending:  "warning",
+  approved: "warning",  // approved but not yet confirmed sent
   rejected: "error",
-  sent: "success",
+  sent:     "success",
+  failed:   "error",
 };
 
 // ─── Draft card ───────────────────────────────────────────────────────────────
@@ -24,6 +25,15 @@ function DraftCard({ draft, index }: { draft: EmailDraft; index: number }) {
   const [editing, setEditing] = useState(false);
   const [body, setBody] = useState(draft.body);
   const [subject, setSubject] = useState(draft.subject);
+
+  // Sync local edit state when the draft prop refreshes after a mutation/refetch.
+  // Without this, editing again after save shows the pre-save content.
+  useEffect(() => {
+    if (!editing) {
+      setBody(draft.body);
+      setSubject(draft.subject);
+    }
+  }, [draft.body, draft.subject, editing]);
   // Recipient override — shown when draft has no stored recipientEmail
   const [recipientInput, setRecipientInput] = useState("");
 
@@ -31,7 +41,7 @@ function DraftCard({ draft, index }: { draft: EmailDraft; index: number }) {
   const reject = useRejectEmail();
   const edit = useEditEmail();
 
-  const isResolved = draft.status === "approved" || draft.status === "rejected" || draft.status === "sent";
+  const isResolved = draft.status === "approved" || draft.status === "rejected" || draft.status === "sent" || draft.status === "failed";
   const isPending = draft.status === "pending";
   const needsRecipient = !draft.recipientEmail;
 
@@ -206,13 +216,17 @@ function DraftCard({ draft, index }: { draft: EmailDraft; index: number }) {
         <div
           className={cn(
             "border-t px-5 py-3.5 flex items-center gap-2 text-xs font-medium",
-            draft.status === "approved" || draft.status === "sent"
+            draft.status === "sent"
               ? "border-lp-green/20 text-lp-green"
+              : draft.status === "approved"
+              ? "border-lp-amber/20 text-lp-amber"
               : "border-lp-red/20 text-lp-red"
           )}
           style={{ animation: "lp-step-done 0.35s cubic-bezier(0.34,1.56,0.64,1) both" }}
         >
-          {draft.status === "approved" || draft.status === "sent" ? (
+          {draft.status === "sent" ? (
+            <CheckCircle2 className="w-3.5 h-3.5" />
+          ) : draft.status === "approved" ? (
             <CheckCircle2 className="w-3.5 h-3.5" />
           ) : (
             <XCircle className="w-3.5 h-3.5" />
@@ -222,8 +236,10 @@ function DraftCard({ draft, index }: { draft: EmailDraft; index: number }) {
               ? `Sent to ${draft.recipientEmail}`
               : "Email sent"
             : draft.status === "approved"
-              ? "Email sent"
-              : "Draft discarded"}
+            ? "Approved — pending send"
+            : draft.status === "failed"
+            ? "Send failed — check Gmail config"
+            : "Draft discarded"}
         </div>
       )}
     </div>
@@ -232,13 +248,14 @@ function DraftCard({ draft, index }: { draft: EmailDraft; index: number }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-type FilterTab = "pending" | "email-found" | "rejected" | "sent" | "all";
+type FilterTab = "pending" | "email-found" | "rejected" | "sent" | "failed" | "all";
 
 const TABS: { key: FilterTab; label: string }[] = [
   { key: "email-found", label: "Email Found" },
   { key: "pending",     label: "Pending"     },
   { key: "sent",        label: "Sent"        },
   { key: "rejected",    label: "Rejected"    },
+  { key: "failed",      label: "Failed"      },
   { key: "all",         label: "All"         },
 ];
 
@@ -321,8 +338,12 @@ export function ApprovalsQueue() {
           ))}
         </div>
       ) : displayed.length === 0 ? (
-        <div className="border border-border/60 flex flex-col items-center justify-center py-20 text-center">
-          <p className="text-sm text-muted-foreground/50">No {tab} drafts.</p>
+        <div className="border border-border/60 flex flex-col items-center justify-center py-20 text-center px-6">
+          <p className="text-sm text-muted-foreground/50">
+            {tab === "pending" || tab === "email-found"
+              ? <>No drafts waiting for review. <a href="/dashboard/agent" className="text-lp-amber hover:underline">Run the pipeline</a> to generate new outreach.</>
+              : `No ${tab} drafts.`}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

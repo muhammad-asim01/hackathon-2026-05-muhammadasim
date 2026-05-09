@@ -12,7 +12,7 @@ import type { LeadStatus, RunStatus, EmailStatus, EventLevel } from "@/domain/ty
 
 export type FrontendLeadStatus = "new" | "contacted" | "approved" | "rejected" | "cold";
 export type FrontendRunStatus = "running" | "complete" | "failed" | "queued";
-export type FrontendEmailStatus = "pending" | "approved" | "rejected" | "sent";
+export type FrontendEmailStatus = "pending" | "approved" | "rejected" | "sent" | "failed";
 export type FrontendEventLevel = "info" | "success" | "warning" | "error";
 export type FrontendAgentStatus = "pending" | "running" | "done" | "failed";
 
@@ -53,7 +53,7 @@ function mapEmailStatus(s: EmailStatus): FrontendEmailStatus {
     case "APPROVED":         return "approved";
     case "REJECTED":         return "rejected";
     case "SENT":             return "sent";
-    case "FAILED":           return "sent"; // treat failed-send as "sent" for display
+    case "FAILED":           return "failed";
   }
 }
 

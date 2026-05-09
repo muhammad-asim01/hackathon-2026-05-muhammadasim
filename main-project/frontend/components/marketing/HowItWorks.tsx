@@ -20,7 +20,7 @@ const STEPS = [
     icon: ScanLine,
     title: "Audit their digital presence",
     description:
-      "Crawls their website with Puppeteer, runs Google PageSpeed Insights, and pulls their latest Google reviews to build a full picture of their online health.",
+      "Crawls their website with a headless Playwright browser, runs Google PageSpeed Insights, and pulls available review data to build a full picture of their online health.",
     label: "Analyst Agent",
   },
   {
@@ -44,7 +44,7 @@ const STEPS = [
     icon: Send,
     title: "Approve, track, and report",
     description:
-      "Every draft lands in an approval queue — nothing sends without your sign-off. On approval, the lead logs to Postgres and mirrors to Google Sheets automatically.",
+      "Every draft lands in an approval queue — nothing sends without your sign-off. On approval, the lead is logged to Postgres. Google Sheets sync is coming soon.",
     label: "Tracker · Reporter",
   },
 ] as const;

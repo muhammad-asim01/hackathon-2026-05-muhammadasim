@@ -4,7 +4,7 @@
 // ─── Shared enums ─────────────────────────────────────────────────────────────
 
 export type LeadStatus = "new" | "contacted" | "approved" | "rejected" | "cold";
-export type DraftStatus = "pending" | "approved" | "rejected" | "sent";
+export type DraftStatus = "pending" | "approved" | "rejected" | "sent" | "failed";
 export type RunStatus = "running" | "complete" | "failed" | "queued";
 export type AgentStatus = "pending" | "running" | "done" | "failed";
 export type EventLevel = "info" | "success" | "warning" | "error";

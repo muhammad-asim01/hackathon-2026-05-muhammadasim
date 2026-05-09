@@ -150,6 +150,23 @@ export function DashboardOverview() {
         
       </div>
 
+      {/* First-run onboarding nudge — only shown when no leads exist yet */}
+      {!summaryLoading && (summary?.totalLeadsAllTime ?? 0) === 0 && (
+        <div className="border border-lp-amber/20 bg-lp-amber/5 px-5 py-4 flex items-start gap-4" style={{ animation: "lp-fade-in 0.4s ease both" }}>
+          <div className="w-8 h-8 border border-lp-amber/30 bg-lp-amber/10 flex items-center justify-center shrink-0 mt-0.5">
+            <Play className="w-3.5 h-3.5 text-lp-amber" strokeWidth={1.5} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground">Your pipeline hasn&apos;t run yet</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Click <span className="text-lp-amber font-medium">Run Pipeline</span> above, or go to the{" "}
+              <Link href="/dashboard/agent" className="text-lp-amber hover:underline">Agent page</Link>{" "}
+              for full controls — niche, city, score threshold, and word limit.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* KPI grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border/40 border border-border/40">
         <KpiCard

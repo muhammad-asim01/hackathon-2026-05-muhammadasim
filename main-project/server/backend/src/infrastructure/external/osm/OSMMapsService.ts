@@ -95,6 +95,8 @@ interface NominatimGeocode {
   lat: string;
   lon: string;
   display_name: string;
+  type?: string;
+  class?: string;
 }
 
 interface NominatimSearchResult {
@@ -904,9 +906,11 @@ export class OSMMapsService implements IMapsService {
   private async geocodeLocation(
     location: string,
   ): Promise<{ lat: number; lon: number; resolvedCity: string }> {
+    // featuretype is only valid on /lookup, not /search — omit it.
+    // Fetch 5 candidates so we can pick the best place-type match.
     const url =
       `${NOMINATIM_BASE}/search?` +
-      new URLSearchParams({ q: location, format: "json", limit: "1", featuretype: "settlement,country,state" }).toString();
+      new URLSearchParams({ q: location, format: "json", limit: "5", addressdetails: "1" }).toString();
 
     let results: NominatimGeocode[];
     try {
@@ -917,7 +921,14 @@ export class OSMMapsService implements IMapsService {
     if (!results.length) {
       throw new ExternalServiceError(`Could not geocode "${location}" — no results from Nominatim`, false, { location });
     }
-    const hit  = results[0]!;
+
+    // Prefer city/town/village/administrative results over streets or buildings
+    const PLACE_TYPES = new Set(["city", "town", "village", "municipality", "county", "administrative"]);
+    const hit =
+      results.find((r) => r.type && PLACE_TYPES.has(r.type)) ??
+      results.find((r) => r.class === "place" || r.class === "boundary") ??
+      results[0]!;
+
     const city = hit.display_name.split(",")[0]?.trim() ?? location;
     return { lat: parseFloat(hit.lat), lon: parseFloat(hit.lon), resolvedCity: city };
   }

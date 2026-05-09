@@ -20,14 +20,11 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
-    "db:reset": "prisma migrate reset --force",
-    "postinstall": "npx playwright install chromium --with-deps"
+    "db:reset": "prisma migrate reset --force"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.36.0",
-    "@googlemaps/google-maps-services-js": "^3.4.0",
     "@prisma/client": "^6.6.0",
-    "cheerio": "^1.2.0",
     "compression": "^1.7.5",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
@@ -39,8 +36,6 @@
     "node-cron": "^3.0.3",
     "pino": "^9.6.0",
     "pino-http": "^10.4.0",
-    "playwright": "^1.59.1",
-    "puppeteer": "^24.4.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {

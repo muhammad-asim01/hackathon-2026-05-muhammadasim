@@ -26,7 +26,7 @@ router.get(
     try {
       const lead = await container.leadRepo.findByPublicId(publicId);
       if (!lead) {
-        next(new NotFoundError(`Audit not found: ${publicId}`));
+        next(new NotFoundError("Audit report not found"));
         return;
       }
 

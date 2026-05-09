@@ -41,10 +41,47 @@ _USER_AGENT = (
 # ── Lazy browser state ─────────────────────────────────────────────────────────
 # Browser is created on the first /crawl request, not at startup.
 # This lets FastAPI boot and pass the healthcheck before Chromium loads.
+#
+# Idle timeout: if no crawl request arrives within BROWSER_IDLE_SECS seconds
+# after the last one completes, Chromium is shut down. The next /crawl will
+# re-launch it lazily. This prevents Chromium from sitting in RAM indefinitely
+# between pipeline runs.
+
+BROWSER_IDLE_SECS = 300  # 5 minutes — tune down if RAM is tight
 
 _pw: Playwright | None = None
 _browser: Browser | None = None
 _browser_lock = asyncio.Lock()
+_idle_task: asyncio.Task | None = None  # type: ignore[type-arg]
+
+
+async def _idle_close() -> None:
+    """Close Chromium after BROWSER_IDLE_SECS of inactivity."""
+    await asyncio.sleep(BROWSER_IDLE_SECS)
+    global _pw, _browser
+    async with _browser_lock:
+        if _browser is not None:
+            log.info(
+                "Playwright browser idle for %ds — closing to free memory.", BROWSER_IDLE_SECS
+            )
+            try:
+                await _browser.close()
+            except Exception:
+                pass
+            try:
+                await _pw.stop()  # type: ignore[union-attr]
+            except Exception:
+                pass
+            _browser = None
+            _pw = None
+
+
+def _reset_idle_timer() -> None:
+    """Cancel any running idle timer and start a fresh one."""
+    global _idle_task
+    if _idle_task is not None and not _idle_task.done():
+        _idle_task.cancel()
+    _idle_task = asyncio.create_task(_idle_close())
 
 
 async def get_browser() -> Browser:
@@ -95,7 +132,9 @@ async def lifespan(app: FastAPI):
 
     log.info("Shutting down: closing httpx client and browser (if started)...")
     await http_client.aclose()
-    global _browser, _pw
+    global _browser, _pw, _idle_task
+    if _idle_task is not None and not _idle_task.done():
+        _idle_task.cancel()
     if _browser is not None:
         await _browser.close()
     if _pw is not None:
@@ -132,6 +171,9 @@ async def crawl_route(body: CrawlRequest, request: Request):
                 browser=browser,
                 http_client=request.app.state.http_client,
             )
+        # Restart the idle countdown after every successful crawl.
+        # If no further requests arrive within BROWSER_IDLE_SECS, Chromium exits.
+        _reset_idle_timer()
         log.info(f"POST /crawl done url={body.url} emails={len(result.emails)}")
         return result
     except Exception as exc:

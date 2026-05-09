@@ -15,6 +15,8 @@ export class MockEmailSender implements IEmailSender {
         subject: input.subject,
         fromName: input.fromName,
         bodyPreview: input.body.slice(0, 80),
+        hasHtml: Boolean(input.htmlBody),
+        htmlPreview: input.htmlBody ? input.htmlBody.slice(0, 100) : undefined,
         messageId,
       },
       "MockEmailSender: simulated send (no Gmail credentials configured)"

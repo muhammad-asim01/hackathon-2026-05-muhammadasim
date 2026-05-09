@@ -4,6 +4,8 @@ import type { IEmailSender } from "@/application/ports/IEmailSender";
 import type { Email } from "@/domain/types";
 import { DraftNotFoundError, ValidationError } from "@/domain/errors";
 import { logger } from "@/utils/logger";
+import { buildAuditReportHtml } from "@/infrastructure/email-templates/auditReportEmail";
+import type { AuditEmailData } from "@/infrastructure/email-templates/auditReportEmail";
 
 export interface ApproveAndSendInput {
   readonly emailId: string;
@@ -16,7 +18,8 @@ export class ApproveAndSendEmail {
   constructor(
     private readonly emailRepo: IEmailRepository,
     private readonly leadRepo: ILeadRepository,
-    private readonly emailSender: IEmailSender
+    private readonly emailSender: IEmailSender,
+    private readonly frontendUrl: string = "http://localhost:3000"
   ) {}
 
   async execute(input: ApproveAndSendInput): Promise<Email> {
@@ -40,11 +43,44 @@ export class ApproveAndSendEmail {
     let gmailMessageId: string | undefined;
 
     if (to) {
+      const auditUrl = `${this.frontendUrl}/audit/${lead.publicId}`;
+
+      // Validate review sentiment into the expected union type
+      const sentiment = (lead.reviewSentiment === "positive" ||
+        lead.reviewSentiment === "mixed" ||
+        lead.reviewSentiment === "negative")
+        ? lead.reviewSentiment
+        : undefined;
+
+      // Audit-phase fields (pageSpeedScore, mobileScore, hasSSL, etc.) live on the
+      // separate Audit model — not denormalized to Lead. They render as "pending"
+      // check items in the email template.
+      const emailData: AuditEmailData = {
+        businessName:  lead.businessName,
+        address:       lead.address ?? "",
+        city:          lead.city,
+        niche:         lead.niche,
+        reviewCount:   lead.reviewCount ?? 0,
+        emailSubject:  email.subject,
+        emailBody:     email.body,
+        auditUrl,
+        ...(lead.website         && { website:         lead.website }),
+        ...(lead.phone           && { phone:           lead.phone }),
+        ...(lead.digitalScore    && { digitalScore:    lead.digitalScore }),
+        ...(lead.topIssue        && { topIssue:        lead.topIssue }),
+        ...(lead.reviewExcerpt   && { reviewExcerpt:   lead.reviewExcerpt }),
+        ...(lead.googleRating    && { googleRating:    lead.googleRating }),
+        ...(sentiment            && { reviewSentiment: sentiment }),
+      };
+
+      const htmlBody = buildAuditReportHtml(emailData);
+
       try {
         const result = await this.emailSender.send({
           to,
           subject: email.subject,
           body: email.body,
+          htmlBody,
         });
         gmailMessageId = result.messageId;
         log.info({ to, messageId: gmailMessageId }, "Email sent");

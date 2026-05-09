@@ -58,16 +58,48 @@ export class GmailService implements IEmailSender {
       ? `"${safeName}" <${this.config.senderEmail}>`
       : this.config.senderEmail;
 
-    // RFC 2822 message — Gmail API requires base64url encoding
-    const raw = [
-      `From: ${fromHeader}`,
-      `To: ${input.to}`,
-      `Subject: ${input.subject}`,
-      `Content-Type: text/plain; charset=utf-8`,
-      `MIME-Version: 1.0`,
-      ``,
-      input.body,
-    ].join("\r\n");
+    // Strip CRLF from To/Subject to prevent header injection
+    const safeTo      = input.to.replace(/[\r\n]+/g, " ").trim();
+    const safeSubject = input.subject.replace(/[\r\n]+/g, " ").trim();
+
+    // RFC 2822 / MIME message — Gmail API requires base64url encoding.
+    // When htmlBody is provided, send multipart/alternative so clients that
+    // support HTML get the rich template; all others fall back to plain text.
+    let raw: string;
+    if (input.htmlBody) {
+      const boundary = `siftai_${Date.now().toString(36)}`;
+      raw = [
+        `From: ${fromHeader}`,
+        `To: ${safeTo}`,
+        `Subject: ${safeSubject}`,
+        `MIME-Version: 1.0`,
+        `Content-Type: multipart/alternative; boundary="${boundary}"`,
+        ``,
+        `--${boundary}`,
+        `Content-Type: text/plain; charset=utf-8`,
+        `Content-Transfer-Encoding: 7bit`,
+        ``,
+        input.body,
+        ``,
+        `--${boundary}`,
+        `Content-Type: text/html; charset=utf-8`,
+        `Content-Transfer-Encoding: 7bit`,
+        ``,
+        input.htmlBody,
+        ``,
+        `--${boundary}--`,
+      ].join("\r\n");
+    } else {
+      raw = [
+        `From: ${fromHeader}`,
+        `To: ${safeTo}`,
+        `Subject: ${safeSubject}`,
+        `Content-Type: text/plain; charset=utf-8`,
+        `MIME-Version: 1.0`,
+        ``,
+        input.body,
+      ].join("\r\n");
+    }
 
     const encoded = Buffer.from(raw)
       .toString("base64")

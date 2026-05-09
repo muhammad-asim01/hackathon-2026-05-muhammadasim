@@ -130,8 +130,23 @@ export function useLiveRun(runId: string | null) {
         }
       };
 
-      source.onerror = () => {
+      source.onerror = async () => {
         source?.close();
+        // SSE dropped mid-pipeline — fall back to a one-shot REST fetch so the
+        // UI reflects the final state rather than staying stuck on "running".
+        if (!cancelled) {
+          try {
+            const snapshot = await requests.get<PipelineRun>(API_URLS.runs.detail(id));
+            if (!cancelled) {
+              setRun(snapshot);
+              if (snapshot.status === "complete" || snapshot.status === "failed") {
+                invalidateAfterRun();
+              }
+            }
+          } catch {
+            // If the fallback also fails, leave the existing partial state in place
+          }
+        }
       };
 
       // ── Step 2: fetch snapshot AFTER SSE is listening ──────────────────────

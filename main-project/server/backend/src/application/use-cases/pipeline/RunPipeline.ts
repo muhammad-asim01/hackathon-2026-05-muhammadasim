@@ -119,12 +119,7 @@ export class RunPipeline {
 
         // ── Analyst ────────────────────────────────────────────────────────────
         let auditScore = 0;
-        let auditContext: {
-          topIssue?: string;
-          pageSpeedScore?: number;
-          mobileScore?: number;
-          hasSSL?: boolean;
-        } | undefined;
+        let auditContext: import("@/application/use-cases/writer/GenerateOutreachEmail").AuditContext | undefined;
         let reviewContext: {
           positives: readonly string[];
           negatives: readonly string[];
@@ -166,10 +161,18 @@ export class RunPipeline {
           const updatedLead = await this.leadRepo.findById(lead.id);
           updatedLeadContactEmail = updatedLead?.contactEmail;
           auditContext = {
-            ...(updatedLead?.topIssue !== undefined && { topIssue: updatedLead.topIssue }),
+            // Scoring signals
+            digitalScore:  auditScore,
+            hasSSL:        audit.hasSSL,
+            hasMobileMeta: audit.hasMobileMeta,
+            hasMetaTags:   audit.hasMetaTags,
+            hasCTA:        audit.hasCTA,
+            // PSI scores (may be undefined if PageSpeed call failed)
             ...(audit.pageSpeedScore !== undefined && { pageSpeedScore: audit.pageSpeedScore }),
-            ...(audit.mobileScore !== undefined && { mobileScore: audit.mobileScore }),
-            hasSSL: audit.hasSSL,
+            ...(audit.mobileScore    !== undefined && { mobileScore:    audit.mobileScore    }),
+            ...(audit.loadTimeMs     !== undefined && { loadTimeMs:     audit.loadTimeMs     }),
+            // Top issue string derived by AuditWebsite and persisted to Lead
+            ...(updatedLead?.topIssue !== undefined && { topIssue: updatedLead.topIssue }),
           };
           await this.runRepo.addEvent(runId, {
             agentName: "analyst",

@@ -45,7 +45,15 @@ const schema = z.object({
     .url("FRONTEND_URL must be a valid URL")
     .default("http://localhost:3000"),
 
-  // ── Anthropic (optional until pipeline agents are used) ───────────────────
+  // ── Grok / xAI (primary LLM — used when key is present) ─────────────────
+  // Primary email + review generation. Falls back to Anthropic if absent.
+  // Get a key at: https://console.x.ai
+  GROK_API_KEY: z
+    .string()
+    .optional()
+    .default(""),
+
+  // ── Anthropic (secondary/fallback LLM) ───────────────────────────────────
   // In production, require a real key starting with "sk-ant-".
   // In dev/test, allow omission — MockLLMAdapter is used automatically.
   ANTHROPIC_API_KEY: z
@@ -57,8 +65,8 @@ const schema = z.object({
       { message: "ANTHROPIC_API_KEY must be a valid Anthropic key (starts with sk-ant-) in production" }
     ),
 
-  // Set MOCK_LLM=true to use MockLLMAdapter instead of real Claude API.
-  // Auto-enabled when ANTHROPIC_API_KEY is the placeholder default.
+  // Set MOCK_LLM=true to force MockLLMAdapter regardless of configured keys.
+  // Auto-enabled when neither GROK_API_KEY nor ANTHROPIC_API_KEY is set.
   MOCK_LLM: z
     .string()
     .optional()

@@ -61,9 +61,7 @@ router.get(
   async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const [discovered, drafted, approved, sent, replied] = await Promise.all([
-        container.prisma.lead.count({
-          where: { status: { notIn: [] } }, // all leads = discovered
-        }),
+        container.prisma.lead.count(), // all leads = discovered
         container.prisma.lead.count({
           where: {
             status: {
@@ -108,7 +106,7 @@ router.get(
 
       const buckets: Record<string, number> = {
         "0–10": 0, "11–20": 0, "21–30": 0, "31–40": 0,
-        "41–50": 0, "51–60": 0, "61–75": 0,
+        "41–50": 0, "51–60": 0, "61–75": 0, "76–100": 0,
       };
 
       for (const { digitalScore } of leads) {
@@ -119,7 +117,8 @@ router.get(
         else if (digitalScore <= 40) buckets["31–40"]++;
         else if (digitalScore <= 50) buckets["41–50"]++;
         else if (digitalScore <= 60) buckets["51–60"]++;
-        else                         buckets["61–75"]++;
+        else if (digitalScore <= 75) buckets["61–75"]++;
+        else                         buckets["76–100"]++;
       }
 
       const data = Object.entries(buckets).map(([range, count]) => ({ range, count }));

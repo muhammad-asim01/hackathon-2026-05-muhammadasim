@@ -37,7 +37,7 @@ export function LeadsTable() {
   // ── Filter state ─────────────────────────────────────────────────────────
   const [search, setSearch] = useState("");
   const [scoreMin, setScoreMin] = useState(0);
-  const [scoreMax, setScoreMax] = useState(75);
+  const [scoreMax, setScoreMax] = useState(100);
   const [selectedStatus, setSelectedStatus] = useState<LeadStatus | "">("");
   const [selectedNiche, setSelectedNiche] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -66,12 +66,12 @@ export function LeadsTable() {
   const total = data?.meta.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
 
-  const hasActiveFilters = search || scoreMin > 0 || scoreMax < 75 || selectedStatus || selectedNiche;
+  const hasActiveFilters = search || scoreMin > 0 || scoreMax < 100 || selectedStatus || selectedNiche;
 
   function clearFilters() {
     setSearch("");
     setScoreMin(0);
-    setScoreMax(75);
+    setScoreMax(100);
     setSelectedStatus("");
     setSelectedNiche("");
     setPage(1);
@@ -260,8 +260,19 @@ export function LeadsTable() {
               </tr>
             ) : sorted.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-5 py-16 text-center text-sm text-muted-foreground/40">
-                  No leads match your filters.
+                <td colSpan={7} className="px-5 py-16 text-center">
+                  {hasActiveFilters ? (
+                    <span className="text-sm text-muted-foreground/40">
+                      No leads match your filters.{" "}
+                      <button onClick={clearFilters} className="text-lp-amber hover:underline">Clear filters</button>
+                    </span>
+                  ) : (
+                    <span className="text-sm text-muted-foreground/40">
+                      No leads yet.{" "}
+                      <a href="/dashboard/agent" className="text-lp-amber hover:underline">Run the pipeline</a>{" "}
+                      to discover your first businesses.
+                    </span>
+                  )}
                 </td>
               </tr>
             ) : (
