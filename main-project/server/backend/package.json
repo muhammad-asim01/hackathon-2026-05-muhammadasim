@@ -25,6 +25,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.36.0",
     "@prisma/client": "^6.6.0",
+    "@sentry/node": "^10.52.0",
+    "@sentry/profiling-node": "^10.52.0",
     "compression": "^1.7.5",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
