@@ -548,6 +548,7 @@ I help local shops fix exactly these issues — typically in under a week, with 
 Would a 15-minute call this week make sense to walk through what I found?`,
         wordCount: 180,
         status: EmailStatus.PENDING_APPROVAL,
+        recipientEmail: "owner@thorntonsauto.net",
         createdAt: new Date("2026-05-04T07:06:01Z"),
       },
       {
@@ -567,6 +568,7 @@ Fixing the mobile experience typically takes 3–5 days and has a measurable imp
 Would it be worth a 20-minute screen share this week so I can show you exactly what I'd change?`,
         wordCount: 180,
         status: EmailStatus.PENDING_APPROVAL,
+        recipientEmail: "owner@bellinischi.com",
         createdAt: new Date("2026-05-04T07:06:18Z"),
       },
       {
@@ -606,6 +608,7 @@ I've helped several Chicago service businesses add this exact capability. The se
 Would a 15-minute call this week make sense to walk through the options?`,
         wordCount: 180,
         status: EmailStatus.PENDING_APPROVAL,
+        recipientEmail: "owner@pawwhiskerchi.com",
         createdAt: new Date("2026-05-05T08:19:12Z"),
       },
       {
@@ -678,6 +681,7 @@ A gallery page featuring your best work (organized by style — gel, acrylic, na
 I help Chicago beauty businesses turn their reputation into consistent new client acquisition. Would a 15-minute call this week make sense?`,
         wordCount: 180,
         status: EmailStatus.PENDING_APPROVAL,
+        recipientEmail: "owner@riverianailchi.com",
         createdAt: new Date("2026-05-05T11:51:02Z"),
       },
       {

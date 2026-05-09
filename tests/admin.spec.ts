@@ -157,11 +157,11 @@ test.describe("Leads table", () => {
   test("clear filters resets search input", async ({ page }) => {
     await goToLeadsTable(page);
     const searchInput = page.getByPlaceholder(/search business/i);
-    await searchInput.fill("xyz");
-    // Clear button only renders when hasActiveFilters=true. The button contains
-    // an SVG <X> icon + "Clear" text — getByRole("button", {name:/clear/i}) can
-    // fail if the accessible name is computed from the icon. Filter by text
-    // content instead, which is always reliable.
+    // pressSequentially fires real keyboard events — more reliable than fill()
+    // for React controlled inputs where fill() can fail to trigger onChange.
+    await searchInput.click();
+    await searchInput.pressSequentially("xyz");
+    // Clear button only renders when hasActiveFilters=true.
     const clearBtn = page.locator("button").filter({ hasText: /Clear/ });
     await expect(clearBtn.first()).toBeVisible({ timeout: 8_000 });
     await clearBtn.first().click();
@@ -234,8 +234,9 @@ test.describe("Lead detail page", () => {
 
   test("shows Outreach column and Email Draft", async ({ page }) => {
     await goToLeadDetail(page, "lead_001");
-    // "Outreach" is the column header (CSS-uppercase but DOM text is "Outreach")
-    await expect(page.getByText("Outreach")).toBeVisible();
+    // Use exact:true — "Outreach" also appears inside "Critical — immediate outreach"
+    // which causes a strict-mode violation without exact matching.
+    await expect(page.getByText("Outreach", { exact: true })).toBeVisible();
     await expect(page.getByText("Email Draft")).toBeVisible();
   });
 
@@ -303,7 +304,11 @@ test.describe("Approvals queue", () => {
 
   test("Pending tab shows known pending draft", async ({ page }) => {
     await goTo(page, "/dashboard/approvals");
-    await expect(page.getByText("Thornton's Auto Repair")).toBeVisible();
+    // Wait for approval cards to render (React Query fetch after domcontentloaded).
+    // Use Paw & Whisker — email_004 stays PENDING_APPROVAL throughout the suite
+    // (Thornton's email_001 gets approved by the lead-detail approve test earlier).
+    await page.waitForSelector(".bg-card", { state: "visible", timeout: 10_000 });
+    await expect(page.getByText("Paw & Whisker Grooming")).toBeVisible({ timeout: 8_000 });
   });
 
   test("Sent tab shows sent drafts", async ({ page }) => {
@@ -315,9 +320,13 @@ test.describe("Approvals queue", () => {
 
   test("All tab shows both sent and pending drafts", async ({ page }) => {
     await goTo(page, "/dashboard/approvals");
+    // Wait for initial cards before switching tab
+    await page.waitForSelector(".bg-card", { state: "visible", timeout: 10_000 });
     await page.getByRole("button", { name: /^all/i }).click();
-    await expect(page.getByText("Thornton's Auto Repair")).toBeVisible();
-    await expect(page.getByText("Primrose Bakery & Café")).toBeVisible();
+    // Thornton's email is APPROVED by this point in the suite — still shows in All tab.
+    // Primrose Bakery email is SENT — also shows in All tab.
+    await expect(page.getByText("Thornton's Auto Repair")).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByText("Primrose Bakery & Café")).toBeVisible({ timeout: 8_000 });
   });
 
   test("expand email body preview shows draft text", async ({ page }) => {
@@ -329,10 +338,16 @@ test.describe("Approvals queue", () => {
 
   test("approve button triggers resolved state", async ({ page }) => {
     await goTo(page, "/dashboard/approvals");
-    await page.getByRole("button", { name: /approve & send/i }).first().click();
+    // Wait for cards — React Query is async after domcontentloaded
+    await page.waitForSelector(".bg-card", { state: "visible", timeout: 10_000 });
+    // The Approve & Send button is disabled when the card has no recipientEmail.
+    // Wait for an enabled button before clicking.
+    const approveBtn = page.getByRole("button", { name: /approve & send/i }).first();
+    await expect(approveBtn).toBeEnabled({ timeout: 10_000 });
+    await approveBtn.click();
     await shot(page, "admin", "33-approvals-approved");
     await expect(
-      page.getByText(/sent to|email sent|email approved/i).first()
+      page.getByText(/sent to|email sent|approved.*pending send/i).first()
     ).toBeVisible({ timeout: 8_000 });
   });
 
@@ -482,10 +497,13 @@ test.describe("Settings form", () => {
   test("adding a niche tag appends it to the list", async ({ page }) => {
     await goTo(page, "/dashboard/settings");
     const addInputs = page.getByPlaceholder("Add…");
-    await addInputs.first().fill("Roofing");
+    // pressSequentially fires keyboard events React's controlled input responds to.
+    // fill() does not reliably trigger onChange in the full suite context.
+    await addInputs.first().click();
+    await addInputs.first().pressSequentially("Roofing");
     await addInputs.first().press("Enter");
     await shot(page, "admin", "63-settings-niche-added");
-    await expect(page.getByText("Roofing").first()).toBeVisible();
+    await expect(page.getByText("Roofing").first()).toBeVisible({ timeout: 6_000 });
   });
 
   test("Target Markets shows seeded cities", async ({ page }) => {
@@ -536,8 +554,9 @@ test.describe("Analytics page", () => {
     await goTo(page, "/dashboard/analytics");
     await shot(page, "admin", "71-analytics-niche-breakdown");
     await expect(page.getByText("Niche Breakdown")).toBeVisible();
-    await expect(page.getByText("Auto Repair").first()).toBeVisible();
-    await expect(page.getByText("Pet Grooming").first()).toBeVisible();
+    // Wait for React Query data — both rows only appear after the fetch resolves
+    await expect(page.getByText("Auto Repair").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Pet Grooming").first()).toBeVisible({ timeout: 8_000 });
   });
 
   test("recharts SVG elements render", async ({ page }) => {
