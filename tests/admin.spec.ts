@@ -85,40 +85,46 @@ test.describe("Dashboard overview", () => {
 
 // ─── 2. Leads list ────────────────────────────────────────────────────────────
 
+// With domcontentloaded React hasn't mounted yet — filling the search before
+// React mounts causes the state to be reset to "" on hydration, clearing our
+// fill. This helper waits for tbody tr to confirm React Query has rendered rows
+// before we interact with the search or filter controls.
+async function goToLeadsTable(page: Page): Promise<void> {
+  await goTo(page, "/dashboard/leads");
+  await page.waitForSelector("table tbody tr", { state: "visible", timeout: 12_000 });
+}
+
 test.describe("Leads table", () => {
   test("renders page heading and table", async ({ page }) => {
-    await goTo(page, "/dashboard/leads");
+    await goToLeadsTable(page);
     await shot(page, "admin", "10-leads-table");
     await expect(page.getByRole("heading", { name: "Leads" })).toBeVisible();
     await expect(page.locator("table")).toBeVisible();
   });
 
   test("shows a known business in the table", async ({ page }) => {
-    // Table sorts by score DESC by default — lead_001 (score 18) may be on page 2.
-    // Search to bring it into view reliably.
-    await goTo(page, "/dashboard/leads");
+    // Table sorts by score DESC — lead_001 (score 18) may be on page 2.
+    // Search to bring it into view. Must wait for React to mount first.
+    await goToLeadsTable(page);
     const searchInput = page.getByPlaceholder(/search business/i);
     await searchInput.fill("thornton");
-    await expect(page.getByRole("link", { name: "Thornton's Auto Repair" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Thornton's Auto Repair" })).toBeVisible({ timeout: 10_000 });
   });
 
   test("search filters rows", async ({ page }) => {
-    await goTo(page, "/dashboard/leads");
+    await goToLeadsTable(page);
+    const tbody = page.locator("table tbody");
     const searchInput = page.getByPlaceholder(/search business/i);
     await searchInput.fill("thornton");
-    // Trigger input event explicitly — handles debounced React onChange
-    await searchInput.dispatchEvent("input");
-    // Scope to the table so we don't match sidebar / widget text outside the rows
-    const tbody = page.locator("table tbody");
-    // Wait for Thornton's to appear (proves the filter has settled)
+    // Wait for Thornton's to appear — confirms the filter settled
     await expect(tbody.getByText("Thornton's Auto Repair")).toBeVisible({ timeout: 10_000 });
     await shot(page, "admin", "11-leads-search");
-    // Now assert Bellini's is gone from the filtered table
+    // Bellini's should be gone from the filtered table rows
     await expect(tbody.getByText("Bellini's Ristorante")).not.toBeVisible({ timeout: 8_000 });
   });
 
   test("Filters panel toggles open showing score range and status", async ({ page }) => {
-    await goTo(page, "/dashboard/leads");
+    await goToLeadsTable(page);
     await page.getByRole("button", { name: /filters/i }).click();
     await shot(page, "admin", "12-leads-filters-open");
     await expect(page.getByText(/score range/i)).toBeVisible();
@@ -126,25 +132,24 @@ test.describe("Leads table", () => {
   });
 
   test("status filter — New hides rejected leads", async ({ page }) => {
-    await goTo(page, "/dashboard/leads");
+    await goToLeadsTable(page);
     await page.getByRole("button", { name: /filters/i }).click();
     await page.getByRole("button", { name: "New" }).click();
-    // Scope to the table so sidebar/widget text doesn't create false positives
     const tbody = page.locator("table tbody");
-    // Wait for at least one "new" lead to appear — proves the filter settled
+    // Wait for at least one "new" status lead to appear — proves filter settled
     await expect(tbody.getByText("Thornton's Auto Repair")).toBeVisible({ timeout: 10_000 });
-    // Ironwood Fitness & Yoga (rejected) must not appear in the filtered rows
+    // Ironwood Fitness & Yoga (REJECTED status) must not appear in filtered rows
     await expect(tbody.getByText("Ironwood Fitness & Yoga")).not.toBeVisible({ timeout: 8_000 });
   });
 
   test("sort by Score header click doesn't crash", async ({ page }) => {
-    await goTo(page, "/dashboard/leads");
+    await goToLeadsTable(page);
     await page.getByRole("columnheader", { name: /score/i }).click();
     await expect(page.locator("table")).toBeVisible();
   });
 
   test("clear filters resets search input", async ({ page }) => {
-    await goTo(page, "/dashboard/leads");
+    await goToLeadsTable(page);
     const searchInput = page.getByPlaceholder(/search business/i);
     await searchInput.fill("xyz");
     await page.getByRole("button", { name: /clear/i }).click();
@@ -152,10 +157,10 @@ test.describe("Leads table", () => {
   });
 
   test("clicking a lead navigates to detail", async ({ page }) => {
-    // Search first so Thornton's is guaranteed visible regardless of table sort order
-    await goTo(page, "/dashboard/leads");
+    // Fill search after data loads so React state is set correctly
+    await goToLeadsTable(page);
     await page.getByPlaceholder(/search business/i).fill("thornton");
-    await page.getByRole("link", { name: "Thornton's Auto Repair" }).click();
+    await page.getByRole("link", { name: "Thornton's Auto Repair" }).click({ timeout: 10_000 });
     await expect(page).toHaveURL(/\/dashboard\/leads\/lead_001/);
   });
 });
