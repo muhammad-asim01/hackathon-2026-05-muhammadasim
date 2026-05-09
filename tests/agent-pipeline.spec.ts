@@ -15,18 +15,12 @@
  */
 
 import { test, expect, type Page } from "@playwright/test";
-import path from "path";
-import fs from "fs";
+import { shot as _shot } from "./helpers";
 
-// ─── Screenshot helper ────────────────────────────────────────────────────────
-
-const SS_DIR = path.join("test-results", "agent-pipeline");
+// ─── Screenshot helper — scoped to the "pipeline" suite ───────────────────────
 
 async function shot(page: Page, label: string) {
-  fs.mkdirSync(SS_DIR, { recursive: true });
-  const file = path.join(SS_DIR, `${label}.png`);
-  await page.screenshot({ path: file, fullPage: false });
-  console.log(`📸  ${label}`);
+  await _shot(page, "pipeline", label);
 }
 
 // ─── Selector helpers — use text content, not aria-label ─────────────────────
