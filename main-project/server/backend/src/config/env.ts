@@ -54,16 +54,12 @@ const schema = z.object({
     .default(""),
 
   // ── Anthropic (secondary/fallback LLM) ───────────────────────────────────
-  // In production, require a real key starting with "sk-ant-".
-  // In dev/test, allow omission — MockLLMAdapter is used automatically.
+  // Grok is the primary LLM — Anthropic is an optional fallback.
+  // No strict production requirement; if absent the adapter falls back to Grok.
   ANTHROPIC_API_KEY: z
     .string()
     .optional()
-    .default("sk-ant-placeholder")
-    .refine(
-      (v) => process.env.NODE_ENV !== "production" || v.startsWith("sk-ant-"),
-      { message: "ANTHROPIC_API_KEY must be a valid Anthropic key (starts with sk-ant-) in production" }
-    ),
+    .default("sk-ant-placeholder"),
 
   // Set MOCK_LLM=true to force MockLLMAdapter regardless of configured keys.
   // Auto-enabled when neither GROK_API_KEY nor ANTHROPIC_API_KEY is set.
