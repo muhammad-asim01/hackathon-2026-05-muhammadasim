@@ -11,18 +11,24 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Seeding database...");
 
-  // Clear existing data in reverse FK order
-  await prisma.runEvent.deleteMany();
-  await prisma.email.deleteMany();
-  await prisma.audit.deleteMany();
-  await prisma.lead.deleteMany();
-  await prisma.pipelineRun.deleteMany();
-  await prisma.settings.deleteMany();
+  // Wipe all seeded tables atomically — TRUNCATE CASCADE handles FK order
+  // automatically, far more reliable than manual delete sequencing.
+  await prisma.$executeRaw`TRUNCATE TABLE "RunEvent", "Email", "Audit", "Lead", "PipelineRun", "Settings", "Niche", "MapsCache" RESTART IDENTITY CASCADE`;
 
   // ─── Settings singleton ────────────────────────────────────────────────────
-  await prisma.settings.create({
-    data: {
+  await prisma.settings.upsert({
+    where: { id: "singleton" },
+    create: {
       id: "singleton",
+      dailyQuota: 3,
+      scoreThreshold: 75,
+      emailWordLimit: 180,
+      targetNiches: ["Auto Repair", "Pet Grooming", "HVAC", "Landscaping"],
+      targetCities: ["Chicago, IL", "Austin, TX"],
+      fromName: "Muhammad Asim",
+      replyToEmail: "muhammadasim.code@gmail.com",
+    },
+    update: {
       dailyQuota: 3,
       scoreThreshold: 75,
       emailWordLimit: 180,
@@ -35,6 +41,7 @@ async function main() {
 
   // ─── Pipeline Runs ─────────────────────────────────────────────────────────
   await prisma.pipelineRun.createMany({
+    skipDuplicates: true,
     data: [
       {
         id: "run_001",
@@ -88,6 +95,7 @@ async function main() {
   // Status mapping: "new"+draft=PENDING_APPROVAL, "new"+no draft=AUDITED,
   // "contacted"=EMAIL_SENT, "approved"=APPROVED, "rejected"=REJECTED, "cold"=COLD
   await prisma.lead.createMany({
+    skipDuplicates: true,
     data: [
       {
         id: "lead_001",
@@ -494,6 +502,7 @@ async function main() {
 
   // ─── Audits (one per lead) ─────────────────────────────────────────────────
   await prisma.audit.createMany({
+    skipDuplicates: true,
     data: [
       { leadId: "lead_001", pageSpeedScore: 18, mobileScore: 31, hasSSL: false, hasMobileMeta: true,  hasMetaTags: false, hasCTA: false },
       { leadId: "lead_002", pageSpeedScore: 34, mobileScore: 29, hasSSL: true,  hasMobileMeta: false, hasMetaTags: true,  hasCTA: true  },
@@ -520,6 +529,7 @@ async function main() {
 
   // ─── Emails ────────────────────────────────────────────────────────────────
   await prisma.email.createMany({
+    skipDuplicates: true,
     data: [
       {
         id: "email_001",
@@ -538,6 +548,7 @@ I help local shops fix exactly these issues — typically in under a week, with 
 Would a 15-minute call this week make sense to walk through what I found?`,
         wordCount: 180,
         status: EmailStatus.PENDING_APPROVAL,
+        recipientEmail: "owner@thorntonsauto.net",
         createdAt: new Date("2026-05-04T07:06:01Z"),
       },
       {
@@ -557,6 +568,7 @@ Fixing the mobile experience typically takes 3–5 days and has a measurable imp
 Would it be worth a 20-minute screen share this week so I can show you exactly what I'd change?`,
         wordCount: 180,
         status: EmailStatus.PENDING_APPROVAL,
+        recipientEmail: "owner@bellinischi.com",
         createdAt: new Date("2026-05-04T07:06:18Z"),
       },
       {
@@ -596,6 +608,7 @@ I've helped several Chicago service businesses add this exact capability. The se
 Would a 15-minute call this week make sense to walk through the options?`,
         wordCount: 180,
         status: EmailStatus.PENDING_APPROVAL,
+        recipientEmail: "owner@pawwhiskerchi.com",
         createdAt: new Date("2026-05-05T08:19:12Z"),
       },
       {
@@ -668,6 +681,7 @@ A gallery page featuring your best work (organized by style — gel, acrylic, na
 I help Chicago beauty businesses turn their reputation into consistent new client acquisition. Would a 15-minute call this week make sense?`,
         wordCount: 180,
         status: EmailStatus.PENDING_APPROVAL,
+        recipientEmail: "owner@riverianailchi.com",
         createdAt: new Date("2026-05-05T11:51:02Z"),
       },
       {
@@ -763,6 +777,7 @@ I help service businesses identify and fix exactly these kinds of silent convers
 
   // ─── Run Events ────────────────────────────────────────────────────────────
   await prisma.runEvent.createMany({
+    skipDuplicates: true,
     data: [
       // run_001 — Auto Repair Chicago
       { id: "evt_001_01", runId: "run_001", agentName: "Scout",    level: EventLevel.INFO,    message: 'Querying Google Maps for "Auto Repair" in Chicago, IL',                    createdAt: new Date("2026-05-04T07:00:05Z") },

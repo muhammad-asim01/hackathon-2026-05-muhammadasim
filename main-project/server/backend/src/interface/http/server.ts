@@ -11,6 +11,8 @@
  *   404 fallback  → JSON 404 for unmatched routes
  *   errorHandler  → centralised error → HTTP status mapping (must be last)
  */
+// Sentry must be imported before everything else so it can instrument modules
+import { Sentry } from "@/instrument";
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
@@ -161,6 +163,9 @@ export function createApp() {
   app.use((_req, res) => {
     res.status(404).json({ ok: false, error: { code: "NOT_FOUND", message: "Route not found" } });
   });
+
+  // ── Sentry error handler (must be before custom errorHandler) ────────────
+  Sentry.setupExpressErrorHandler(app);
 
   // ── Error handler (must be the last middleware) ───────────────────────────
   app.use(errorHandler);

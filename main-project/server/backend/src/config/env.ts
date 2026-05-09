@@ -92,6 +92,9 @@ const schema = z.object({
   GOOGLE_SHEETS_SPREADSHEET_ID: z.string().optional().default(""),
   GOOGLE_SERVICE_ACCOUNT_EMAIL: z.string().optional().default("dev@localhost"),
   GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: z.string().optional().default(""),
+
+  // ── Sentry (optional — error monitoring) ──────────────────────────────────
+  SENTRY_DSN: z.string().url().optional(),
 });
 
 // ─── Loader ───────────────────────────────────────────────────────────────────

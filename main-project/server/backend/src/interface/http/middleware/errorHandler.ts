@@ -12,6 +12,7 @@ import type { Request, Response, NextFunction } from "express";
 import { ZodError } from "zod";
 import { DomainError } from "@/domain/errors";
 import { logger } from "@/utils/logger";
+import { Sentry } from "@/instrument";
 
 // ─── Response shape ───────────────────────────────────────────────────────────
 
@@ -43,6 +44,7 @@ export function errorHandler(
         { err, code: err.code, url: req.url, method: req.method },
         "Domain error (server-side)"
       );
+      Sentry.captureException(err, { tags: { code: err.code }, extra: { url: req.url, method: req.method } });
     } else {
       logger.warn(
         { code: err.code, message: err.message, url: req.url },
@@ -94,6 +96,7 @@ export function errorHandler(
     { err, url: req.url, method: req.method },
     "Unhandled error reached errorHandler"
   );
+  Sentry.captureException(err, { extra: { url: req.url, method: req.method } });
 
   res.status(500).json({
     ok: false,
