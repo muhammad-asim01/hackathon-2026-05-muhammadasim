@@ -154,7 +154,15 @@
       "Bash(git -C \"F:/office/cloudi-code\" show 406521f --stat)",
       "Bash(npx eslint *)",
       "Bash(Get-Content \"F:\\\\office\\\\cloudi-code\\\\main-project\\\\server\\\\backend\\\\.env\")",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Read(//tmp/**)",
+      "Read(//c/Users/Funavry/AppData/Local/Temp/claude/**)",
+      "Bash(node scripts/test-sentry.mjs)",
+      "Bash(curl -s http://localhost:3001/nonexistent)",
+      "Bash(kill %1)",
+      "mcp__railway__get_logs",
+      "mcp__railway__list_deployments",
+      "mcp__railway__deploy"
     ]
   }
 }

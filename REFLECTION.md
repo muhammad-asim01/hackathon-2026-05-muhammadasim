@@ -1,5 +1,6 @@
-# Reflection — Muhammad Asim
+# 1-Page Reflection — sift.ai Hackathon
 
+> **Author:** Muhammad Asim · **Date:** May 9, 2026 · **Duration:** 3 days (May 7–9)
 > Due: EOD May 9, 2026 (before demo on May 11).
 
 ## Before the hackathon, my honest take on Claude Code was:
@@ -26,3 +27,23 @@ Before any engineer starts a feature, they should spend 20 minutes writing a CLA
 [ ] No, prefer manual
 
 **Why:** High-leverage for: scaffolding new use-cases, writing documentation/CLAUDE.md files, diagnosing unfamiliar errors (especially infra/CI issues), generating test stubs. Low-leverage for: subtle bug fixes in shared infrastructure (risk of layer violations), anything requiring deep domain judgment that isn't encoded in CLAUDE.md yet. The pattern is: use it when the task has clear acceptance criteria and bounded scope. Avoid it for open-ended refactors until the codebase has better CLAUDE.md coverage.
+
+---
+
+## Key Numbers (3-Day Hackathon)
+
+| Metric | Value |
+|---|---|
+| Total Claude spend | ~$95 over 3 days |
+| Cost per hour | ~$5.28/hr |
+| Files created/modified | ~45 |
+| Bugs found + fixed | 11 |
+| Production deployments | 3 (Vercel, Railway API, Railway Python sidecar) |
+| Model used | Sonnet 4.6 exclusively — no Opus needed |
+| Context compactions | 3 |
+
+---
+
+## One-Sentence Summary
+
+sift.ai demonstrated that a production-grade, multi-agent SaaS pipeline — Clean Architecture, real auth, real deployments, real error monitoring — can be built to demo-quality in 3 days when context management (CLAUDE.md files, scoped prompts, layer constraints) is treated as a first-class engineering discipline.

@@ -28,28 +28,46 @@ interface GroqInputMessage {
 }
 
 interface GroqRequest {
-  model: string;
-  input: GroqInputMessage[];
+  model:             string;
+  input:             GroqInputMessage[];
   max_output_tokens: number;
-  temperature: number;
+  reasoning?:        { effort: "low" | "medium" | "high" };
 }
 
 interface GroqOutputContent {
   type: "output_text" | "reasoning_text";
   text: string;
+  annotations?: unknown[];
+  logprobs?:    null;
 }
 
 interface GroqOutputItem {
-  type: "message" | "reasoning";
+  type:     "message" | "reasoning";
+  id:       string;
+  status:   "completed" | "in_progress" | "failed";
+  role?:    "assistant";
   content?: GroqOutputContent[];
+  summary?: unknown[];
 }
 
 interface GroqResponseBody {
-  output: GroqOutputItem[];
+  id:          string;
+  object:      string;
+  status:      "completed" | "in_progress" | "failed";
+  created_at:  number;
+  model:       string;
+  output:      GroqOutputItem[];
+  temperature: number;
+  top_p:       number;
   usage?: {
-    input_tokens: number;
-    output_tokens: number;
+    input_tokens:          number;
+    output_tokens:         number;
+    total_tokens:          number;
+    input_tokens_details?: { cached_tokens: number };
+    output_tokens_details?: { reasoning_tokens: number };
   };
+  error:             null | { message: string };
+  incomplete_details: null | unknown;
 }
 
 // ─── Adapter ──────────────────────────────────────────────────────────────────
@@ -69,13 +87,12 @@ export class GrokAdapter implements ILLMProvider {
     messages: readonly LLMMessage[],
     options: LLMOptions = {}
   ): Promise<string> {
-    const maxOutputTokens = options.maxTokens  ?? 1024;
-    const temperature     = options.temperature ?? 0.75;
+    const maxOutputTokens = options.maxTokens ?? 1024;
 
     const body: GroqRequest = {
-      model: this.model,
+      model:             this.model,
       max_output_tokens: maxOutputTokens,
-      temperature,
+      reasoning:         { effort: "medium" },
       input: [
         { role: "system", content: systemPrompt },
         ...messages.map((m) => ({
@@ -124,12 +141,26 @@ export class GrokAdapter implements ILLMProvider {
       );
     }
 
-    // Extract text from the first "message" output item's "output_text" content block
-    const messageItem  = data.output?.find((o) => o.type === "message");
-    const textContent  = messageItem?.content?.find((c) => c.type === "output_text");
-    const content      = textContent?.text;
+    // Primary: message item → output_text block
+    let content: string | undefined;
+    const messageItem = data.output?.find((o) => o.type === "message");
+    content = messageItem?.content?.find((c) => c.type === "output_text")?.text;
 
-    if (typeof content !== "string" || content.trim() === "") {
+    // Fallback: scan every output item for any non-empty text block
+    if (!content?.trim()) {
+      for (const item of data.output ?? []) {
+        for (const block of item.content ?? []) {
+          if (block.text?.trim()) {
+            content = block.text;
+            break;
+          }
+        }
+        if (content?.trim()) break;
+      }
+    }
+
+    if (!content?.trim()) {
+      logger.error({ output: data.output }, "GrokAdapter: no text content in response");
       throw new ExternalServiceError(
         "Groq API returned empty or missing output_text content",
         false
