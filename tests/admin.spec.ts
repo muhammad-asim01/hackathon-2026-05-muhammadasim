@@ -57,6 +57,12 @@ test.describe("Dashboard overview", () => {
   test("shows Recent Runs widget with run links", async ({ page }) => {
     await goTo(page, "/dashboard");
     await expect(page.getByText("Recent Runs", { exact: true })).toBeVisible();
+    // Run links are React Query data — give them up to 15 s to load
+    const runsWidget = page.locator(".bg-card").filter({
+      has: page.locator("p", { hasText: "Recent Runs" }),
+    });
+    await expect(runsWidget.getByRole("link").first()).toBeVisible({ timeout: 15_000 });
+    // At least one link must contain a known niche name from the seed
     await expect(
       page.getByRole("link", { name: /Auto Repair|Pet Grooming|HVAC|Landscaping/i }).first()
     ).toBeVisible();
@@ -152,16 +158,30 @@ test.describe("Leads table", () => {
     await goToLeadsTable(page);
     const searchInput = page.getByPlaceholder(/search business/i);
     await searchInput.fill("xyz");
-    await page.getByRole("button", { name: /clear/i }).click();
-    await expect(searchInput).toHaveValue("");
+    // Clear button only renders when hasActiveFilters=true. The button contains
+    // an SVG <X> icon + "Clear" text — getByRole("button", {name:/clear/i}) can
+    // fail if the accessible name is computed from the icon. Filter by text
+    // content instead, which is always reliable.
+    const clearBtn = page.locator("button").filter({ hasText: /Clear/ });
+    await expect(clearBtn.first()).toBeVisible({ timeout: 8_000 });
+    await clearBtn.first().click();
+    await expect(searchInput).toHaveValue("", { timeout: 6_000 });
   });
 
   test("clicking a lead navigates to detail", async ({ page }) => {
-    // Fill search after data loads so React state is set correctly
+    // Fill search after data loads, then wait for the link to appear before clicking.
+    // Use Promise.all([waitForURL, click()]) so Playwright starts listening for the
+    // navigation event *before* the click fires — avoids the race where the navigation
+    // completes before the assertion starts polling the URL.
     await goToLeadsTable(page);
     await page.getByPlaceholder(/search business/i).fill("thornton");
-    await page.getByRole("link", { name: "Thornton's Auto Repair" }).click({ timeout: 10_000 });
-    await expect(page).toHaveURL(/\/dashboard\/leads\/lead_001/);
+    const thorntonLink = page.getByRole("link", { name: "Thornton's Auto Repair" });
+    await expect(thorntonLink).toBeVisible({ timeout: 10_000 });
+    await Promise.all([
+      page.waitForURL(/\/dashboard\/leads\/lead_001/, { timeout: 12_000 }),
+      thorntonLink.click(),
+    ]);
+    expect(page.url()).toContain("/dashboard/leads/lead_001");
   });
 });
 
